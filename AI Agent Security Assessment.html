@@ -1,0 +1,1170 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AI Agent Security Assessment</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=Public+Sans:ital,wght@0,400..700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky control bar + score strip, then tabbed working views; the control matrix is the core surface. */
+:root{
+  --bg:#F2F5F7; --surface:#FFFFFF; --surface-2:#F7F9FA; --ink:#13232F; --muted:#586977; --line:#D6DEE4; --line-strong:#B9C6CF;
+  --accent:#0B6B74; --accent-ink:#FFFFFF; --accent-soft:#DFF0F1;
+  --ok:#1C7343; --ok-bg:#DCF0E3; --warn:#8A5B00; --warn-bg:#FAEDCB; --bad:#A8231B; --bad-bg:#F8DCD8; --na:#5F6973; --na-bg:#E5E9EC;
+  --p1:#A8231B; --p1-ink:#FFFFFF; --p2:#E59A5C; --p2-ink:#2A1606; --p3:#EBCB6E; --p3-ink:#2B2105;
+  --unset:#E9EEF1;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E151B; --surface:#15202A; --surface-2:#1A2631; --ink:#E2E9EF; --muted:#93A3B1; --line:#283643; --line-strong:#3A4A58;
+  --accent:#4DB6C0; --accent-ink:#06191C; --accent-soft:#12323A;
+  --ok:#6CD198; --ok-bg:#12301F; --warn:#E6B649; --warn-bg:#33280E; --bad:#F2887E; --bad-bg:#3A1917; --na:#A0AAB4; --na-bg:#24303B;
+  --p1:#E0574C; --p1-ink:#FFFFFF; --p2:#D98A4E; --p2-ink:#1C0E03; --p3:#D9B95A; --p3-ink:#1D1603;
+  --unset:#22303B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E151B; --surface:#15202A; --surface-2:#1A2631; --ink:#E2E9EF; --muted:#93A3B1; --line:#283643; --line-strong:#3A4A58;
+  --accent:#4DB6C0; --accent-ink:#06191C; --accent-soft:#12323A;
+  --ok:#6CD198; --ok-bg:#12301F; --warn:#E6B649; --warn-bg:#33280E; --bad:#F2887E; --bad-bg:#3A1917; --na:#A0AAB4; --na-bg:#24303B;
+  --p1:#E0574C; --p1-ink:#FFFFFF; --p2:#D98A4E; --p2-ink:#1C0E03; --p3:#D9B95A; --p3-ink:#1D1603;
+  --unset:#22303B; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* header */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-block:12px 10px}
+.brand{display:flex;flex-direction:column;min-width:0;margin-right:auto}
+.brand h1{font-family:var(--f-display);font-stretch:85%;font-weight:750;font-size:21px;letter-spacing:.005em;margin:0;line-height:1.1;text-wrap:balance}
+.brand small{color:var(--muted);font-size:12px}
+.picker{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.picker select{min-width:0;max-width:280px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface)}
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:var(--r);padding:7px 12px;cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.savestate{font-size:12px;color:var(--muted);min-width:110px;text-align:right}
+.savestate.err{color:var(--bad)}
+.savestate::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--line-strong)}
+.savestate.ok::before{background:var(--ok)} .savestate.local::before{background:var(--warn)} .savestate.err::before{background:var(--bad)}
+.banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.banner > span{flex:1 1 320px;min-width:0}
+.banner .btn{background:var(--surface)}
+.banner.store{background:var(--accent-soft);color:var(--ink);border:1px solid var(--accent)}
+
+.strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:4px}
+.kpi{background:var(--surface);padding:8px 12px;display:flex;align-items:baseline;gap:8px;min-width:0}
+.kpi b{font-family:var(--f-display);font-stretch:80%;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.kpi span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kpi.alert b{color:var(--p1)}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs a{padding:10px 14px;text-decoration:none;color:var(--muted);font-weight:600;font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs a:hover{color:var(--ink)}
+
+main{padding-block:20px 60px}
+.view[hidden]{display:none}
+h2{font-family:var(--f-display);font-stretch:90%;font-weight:700;font-size:19px;margin:0 0 4px;text-wrap:balance}
+h3{font-family:var(--f-display);font-stretch:90%;font-weight:700;font-size:15px;margin:0}
+.lede{color:var(--muted);max-width:70ch;margin:0 0 16px}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.banner{padding:10px 14px;border-radius:var(--r);background:var(--warn-bg);color:var(--warn);margin-bottom:16px;font-size:13px}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--unset);color:var(--muted);white-space:nowrap;line-height:18px}
+.chip.crit-High{background:transparent;border:1px solid var(--line-strong);color:var(--ink)}
+.chip.crit-Medium,.chip.crit-Low{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.chip.P1{background:var(--p1);color:var(--p1-ink)} .chip.P2{background:var(--p2);color:var(--p2-ink)} .chip.P3{background:var(--p3);color:var(--p3-ink)}
+.st-I{background:var(--ok-bg);color:var(--ok)} .st-P{background:var(--warn-bg);color:var(--warn)} .st-N{background:var(--bad-bg);color:var(--bad)} .st-NA{background:var(--na-bg);color:var(--na)}
+
+/* overview */
+.ov-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+.catrow{display:grid;grid-template-columns:minmax(0,1fr) 54px 44px;gap:4px 12px;align-items:center;padding:10px 16px;border-top:1px solid var(--line)}
+.catrow:first-of-type{border-top:0}
+.catrow .nm{font-size:13px;font-weight:600;grid-column:1/-1;display:flex;justify-content:space-between;gap:8px}
+.catrow .nm button{all:unset;cursor:pointer}
+.catrow .nm button:hover{color:var(--accent);text-decoration:underline}
+.stack{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--unset)}
+.stack i{display:block;height:100%}
+.stack .I{background:var(--ok)} .stack .P{background:var(--warn)} .stack .N{background:var(--bad)} .stack .NA{background:var(--na);opacity:.45}
+.catrow .pct{font-family:var(--f-mono);font-size:13px;text-align:right;font-weight:600}
+.catrow .mat{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);padding:10px 16px;border-top:1px solid var(--line)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 16px 8px}
+.gaplist{list-style:none;margin:0;padding:0}
+.gaplist li{padding:10px 16px;border-top:1px solid var(--line);display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px}
+.gaplist a{color:var(--ink);text-decoration:none}
+.gaplist a:hover{color:var(--accent)}
+.gaplist .id{font-family:var(--f-mono);font-size:12px;font-weight:600}
+.empty-note{padding:16px;color:var(--muted);font-size:13px}
+.statusdist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.statusdist div{background:var(--surface);padding:10px 16px}
+.statusdist b{font-family:var(--f-display);font-stretch:80%;font-size:24px;display:block;line-height:1.1;font-variant-numeric:tabular-nums}
+.statusdist span{font-size:12px;color:var(--muted)}
+
+/* controls */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.filters input,.filters select{padding:7px 10px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface);min-width:0}
+.filters input{flex:1 1 220px}
+.filters .count{font-size:12px;color:var(--muted);margin-left:auto}
+.group{margin-bottom:18px}
+.group-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:0 2px 8px}
+.group-h .code{font-family:var(--f-mono);font-size:12px;color:var(--accent);font-weight:600}
+.group-h .meta{font-size:12px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.ctl{display:grid;grid-template-columns:72px minmax(0,1fr) auto auto 32px;gap:8px 14px;align-items:start;padding:12px 14px;border-top:1px solid var(--line);background:var(--surface)}
+.ctl:first-child{border-top:0}
+.ctl .cid{font-family:var(--f-mono);font-weight:600;font-size:12.5px;padding-top:2px}
+.ctl .q{min-width:0}
+.ctl .q p{margin:0 0 6px;max-width:75ch}
+.ctl .chips{display:flex;flex-wrap:wrap;gap:5px}
+.ctl.state-I{box-shadow:inset 3px 0 0 var(--ok)} .ctl.state-P{box-shadow:inset 3px 0 0 var(--warn)} .ctl.state-N{box-shadow:inset 3px 0 0 var(--bad)} .ctl.state-NA{box-shadow:inset 3px 0 0 var(--na)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r);overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:6px 9px;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button:hover{background:var(--surface-2);color:var(--ink)}
+.seg button[aria-pressed="true"].s-I{background:var(--ok-bg);color:var(--ok)}
+.seg button[aria-pressed="true"].s-P{background:var(--warn-bg);color:var(--warn)}
+.seg button[aria-pressed="true"].s-N{background:var(--bad-bg);color:var(--bad)}
+.seg button[aria-pressed="true"].s-NA{background:var(--na-bg);color:var(--na)}
+.mat{display:inline-flex;gap:2px;align-items:center}
+.mat button{width:24px;height:28px;border:1px solid var(--line);background:var(--surface);border-radius:4px;font-family:var(--f-mono);font-size:12px;cursor:pointer;color:var(--muted);padding:0}
+.mat button:hover{border-color:var(--line-strong);color:var(--ink)}
+.mat button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mat-l{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:2px}
+.expand{width:32px;height:30px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);cursor:pointer;color:var(--muted);position:relative}
+.expand::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translate(-50%,-70%) rotate(45deg);transition:transform .15s}
+.expand[aria-expanded="true"]::after{transform:translate(-50%,-30%) rotate(-135deg)}
+.expand.has{color:var(--accent);border-color:var(--accent)}
+.detail{grid-column:2/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding-top:6px}
+.detail label,.field label{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:3px}
+.detail textarea,.detail input,.detail select,.field input,.field textarea,.field select{width:100%;padding:7px 9px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface-2);min-width:0}
+.detail textarea,.field textarea{min-height:64px;resize:vertical}
+.detail .refs{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;font-size:12px;background:var(--surface-2);border-radius:var(--r);padding:8px 10px}
+.detail .refs b{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.detail .refs span{font-family:var(--f-mono)}
+.detail .row3{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+
+/* checklist */
+.ck{display:grid;grid-template-columns:34px minmax(0,1fr) 120px 150px;gap:6px 14px;padding:12px 16px;border-top:1px solid var(--line);align-items:start}
+.ck:first-child{border-top:0}
+.ck .n{font-family:var(--f-display);font-stretch:80%;font-size:22px;font-weight:700;color:var(--muted);line-height:1}
+.ck .t{font-weight:600}
+.ck .links{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.ck .links button{all:unset;cursor:pointer;font-family:var(--f-mono);font-size:11px;padding:1px 6px;border-radius:4px}
+.ck .links button:hover{outline:1px solid var(--line-strong)}
+.ck .links button.u{background:var(--unset);color:var(--muted)}
+.ck .cov{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-top:4px}
+.ck select,.ck input{width:100%;padding:6px 8px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface-2);font-size:13px}
+.ck .ovr{grid-column:2/-1;display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px}
+.ck-status{font-size:12px;font-weight:700;padding:4px 8px;border-radius:var(--r);text-align:center}
+.cs-Met{background:var(--ok-bg);color:var(--ok)} .cs-Partially{background:var(--warn-bg);color:var(--warn)} .cs-Not{background:var(--bad-bg);color:var(--bad)} .cs-None{background:var(--unset);color:var(--muted)}
+
+/* data handling */
+.dh{padding:16px;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px}
+.dh:first-child{border-top:0}
+.dh h3{font-size:17px}
+.dh .ex{color:var(--muted);font-size:13px;margin:4px 0 10px}
+.dh .base{font-size:13px;margin:0 0 10px}
+.dh .sugg{font-size:12.5px;background:var(--accent-soft);border-radius:var(--r);padding:8px 10px;margin:0}
+.dh .sugg b{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px;color:var(--accent)}
+.decis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.decis .field label{font-size:10px;text-transform:none;letter-spacing:0}
+.decis select{padding:6px 6px;font-size:12.5px}
+.decis select.v-Yes{color:var(--ok)} .decis select.v-No{color:var(--bad)} .decis select.v-Conditional,.decis select.v-Redacted{color:var(--warn)}
+.stackf{display:grid;gap:10px}
+
+/* scope */
+.scope{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:16px}
+.scope .wide{grid-column:1/-1}
+.method{padding:0 16px 16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;font-size:13px}
+.method dl{margin:0}
+.method dt{font-weight:700;margin-top:6px}
+.method dd{margin:0;color:var(--muted)}
+
+/* empty / modal */
+.empty{padding:48px 24px;text-align:center}
+.empty p{color:var(--muted);max-width:52ch;margin:8px auto 18px}
+.confirm{display:inline-flex;gap:6px;align-items:center;font-size:12px}
+.imp{padding:16px;margin-bottom:16px;border-color:var(--accent)}
+.imp h3{margin-bottom:4px}
+.imp .sum{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.imp .warnlist{font-size:12.5px;color:var(--warn);margin:6px 0 0;padding-left:18px}
+.imp .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.imp .err{color:var(--bad);margin:6px 0 0}
+.imp .hint{font-size:12.5px;color:var(--muted);margin:4px 0 0;max-width:80ch}
+.dropping{outline:2px dashed var(--accent);outline-offset:-8px}
+.detail .wide{grid-column:1/-1}
+.cn-toggle{all:unset;cursor:pointer;font-size:12px;font-weight:600;color:var(--accent)}
+.cn-toggle:hover{text-decoration:underline}
+.cn-box{margin:0 0 10px}
+.cn-box textarea{width:100%;min-height:60px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface);resize:vertical}
+.cn-snip{grid-column:1/-1;font-size:12px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;border-left:2px solid var(--line-strong);padding-left:8px;margin-top:2px}
+.composer{padding:16px;display:grid;gap:10px}
+.composer textarea{width:100%;min-height:90px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface-2);resize:vertical}
+.composer .row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.composer .row .field{flex:0 1 240px}
+.composer .row .field input{width:100%;padding:7px 9px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface-2)}
+.composer .hint{font-size:12px;color:var(--muted);margin-left:auto}
+.log{list-style:none;margin:0;padding:0}
+.log li{padding:14px 16px;border-top:1px solid var(--line);display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 16px}
+.log .when{font-family:var(--f-mono);font-size:12px;color:var(--muted);line-height:1.5}
+.log .when b{display:block;color:var(--ink);font-family:var(--f-body);font-size:13px}
+.log .body{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.log .tools{grid-column:2;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+.log .tools button{all:unset;cursor:pointer;color:var(--accent);font-weight:600}
+.log .tools button:hover{text-decoration:underline}
+.log .tools button.del{color:var(--bad)}
+.log textarea{width:100%;min-height:80px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--surface-2);resize:vertical}
+.tabcount{font-family:var(--f-mono);font-size:11px;color:var(--muted);margin-left:4px}
+@media (max-width:860px){.log li{grid-template-columns:minmax(0,1fr)}.log .tools{grid-column:1}}
+
+@media (max-width:860px){
+  .ov-grid{grid-template-columns:minmax(0,1fr)}
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .strip .kpi:nth-child(n+4){display:none}
+  header.top{position:static}
+  .kpi{flex-direction:column;gap:2px}
+  .ctl{grid-template-columns:minmax(0,1fr) 32px}
+  .ctl .cid{grid-column:1;grid-row:1}
+  .ctl .q{grid-column:1/-1}
+  .ctl .expand{grid-column:2;grid-row:1}
+  .ctl .sbox,.ctl .mbox{grid-column:1/-1}
+  .detail{grid-column:1/-1;grid-template-columns:minmax(0,1fr)}
+  .detail .refs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .detail .row3{grid-template-columns:minmax(0,1fr)}
+  .ck{grid-template-columns:30px minmax(0,1fr)}
+  .ck .c3,.ck .c4{grid-column:2/3}
+  .ck .ovr{grid-template-columns:minmax(0,1fr)}
+  .dh{grid-template-columns:minmax(0,1fr)}
+  .decis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scope,.method{grid-template-columns:minmax(0,1fr)}
+  .savestate{text-align:left;min-width:0}
+}
+@media (max-width:480px){.seg button{padding:6px 7px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <h1>AI Agent Security Assessment</h1>
+        <small>ISACA Cybersecurity Recommendations for Securing AI Agents (2026) · 80 controls · 11 practice categories</small>
+      </div>
+      <div class="picker" id="picker">
+        <label for="asmt-select" class="eyebrow" style="position:absolute;left:-9999px">Assessment</label>
+        <select id="asmt-select" aria-label="Assessment"></select>
+        <button class="btn primary" id="btn-new" type="button">New assessment</button>
+        <button class="btn" id="btn-dup" type="button">Duplicate</button>
+        <button class="btn" id="btn-import" type="button">Import</button>
+        <input type="file" id="file-import" accept=".csv,.json,text/csv,application/json" hidden>
+        <button class="btn" id="btn-export" type="button">Export CSV</button>
+        <button class="btn" id="btn-export-json" type="button" title="Full backup: scope, controls, notes, checklist overrides and data handling">Export JSON</button>
+        <span id="del-wrap"><button class="btn danger" id="btn-del" type="button">Delete</button></span>
+      </div>
+      <div class="savestate" id="savestate" aria-live="polite">Loading…</div>
+    </div>
+  </div>
+  <div class="wrap"><div class="strip" id="strip"></div></div>
+  <div class="wrap">
+    <nav class="tabs" id="tabs" aria-label="Views">
+      <a href="#overview" data-v="overview">Overview</a>
+      <a href="#controls" data-v="controls">Controls</a>
+      <a href="#checklist" data-v="checklist">Secure by Default</a>
+      <a href="#data" data-v="data">Data handling</a>
+      <a href="#notes" data-v="notes">Notes<span class="tabcount" id="notes-count"></span></a>
+      <a href="#scope" data-v="scope">Scope &amp; method</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <div id="import-panel"></div>
+  <div id="banner"></div>
+  <section class="view" id="v-empty" hidden>
+    <div class="panel empty">
+      <h2>No assessments yet</h2>
+      <p>Create one assessment per AI agent, or per group of agents that share a runtime and toolset. Sandboxing, tool access and the policy enforcement point usually differ between agents, so one score for several agents hides the gaps.</p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn primary" type="button" id="btn-new-empty">Create the first assessment</button><button class="btn" type="button" id="btn-import-empty">Import a file</button></div><p style="font-size:12.5px;margin-top:12px">Imports this tool's JSON backup or CSV export, or the Excel worksheet's Assessment tab saved as CSV. You can also drop a file anywhere on the page.</p>
+    </div>
+  </section>
+  <section class="view" id="v-overview" hidden></section>
+  <section class="view" id="v-controls" hidden>
+    <div class="filters">
+      <label for="f-q" style="position:absolute;left:-9999px">Search controls</label>
+      <input id="f-q" type="search" placeholder="Search ID, control text, owner, evidence…">
+      <label for="f-cat" style="position:absolute;left:-9999px">Category</label>
+      <select id="f-cat"></select>
+      <label for="f-st" style="position:absolute;left:-9999px">Status</label>
+      <select id="f-st">
+        <option value="">All statuses</option><option value="U">Not yet assessed</option><option value="GAP">Any gap</option>
+        <option value="I">Implemented</option><option value="P">Partially implemented</option><option value="N">Not implemented</option><option value="NA">Not applicable</option>
+      </select>
+      <label for="f-pr" style="position:absolute;left:-9999px">Gap priority</label>
+      <select id="f-pr"><option value="">All priorities</option><option>P1</option><option>P2</option><option>P3</option></select>
+      <span class="count" id="f-count"></span>
+    </div>
+    <div id="ctl-list"></div>
+  </section>
+  <section class="view" id="v-checklist" hidden></section>
+  <section class="view" id="v-data" hidden></section>
+  <section class="view" id="v-notes" hidden></section>
+  <section class="view" id="v-scope" hidden></section>
+</main>
+
+<script>
+const D = {"cats": [{"code": "GOV", "name": "Governance, Asset Inventory, and Risk Ownership"}, {"code": "SDL", "name": "Secure AI Development, Change Management, and Continuous Assurance"}, {"code": "IAM", "name": "Strong Identity, Authentication, and Authorization"}, {"code": "SEG", "name": "Network Segmentation, Isolation, and Sandbox Execution"}, {"code": "PID", "name": "Defense Against Prompt Injection and Untrusted Content"}, {"code": "DAT", "name": "Data Protection, Secrets Management, and Memory Security"}, {"code": "TAPI", "name": "Secure Tool and API Integrations"}, {"code": "POL", "name": "Policy Enforcement, Output Control, and Human Oversight"}, {"code": "MON", "name": "Logging, Monitoring, Detection, and Incident Response"}, {"code": "SUP", "name": "Model, Provider, and Software Supply Chain Security"}, {"code": "RES", "name": "Reliability, Resilience, Kill Switches, and Safe Degradation"}], "controls": [{"id": "GOV-01", "q": "Is a current inventory maintained of every AI agent and its models, tools, plugins, vector stores, memory stores, data sources, data lineage documents, and external providers?", "cl": 1, "crit": "High", "see": "\u2014", "iso42": "A.4.2, A.4.3, A.4.4", "iso27": "5.9", "owasp": "\u2014"}, {"id": "GOV-02", "q": "Are trust boundaries documented across users, the agent runtime, the model provider, the orchestration layer, the tool execution layer, enterprise systems, and human approval interfaces?", "cl": 2, "crit": "High", "see": "SDL-02", "iso42": "A.6.2.3", "iso27": "8.27", "owasp": "LLM01, LLM06"}, {"id": "GOV-03", "q": "Is clear control ownership assigned for deployment approval, tool access scope, monitoring, incident response, and risk acceptance?", "cl": 2, "crit": "High", "see": "\u2014", "iso42": "A.3.2", "iso27": "5.2", "owasp": "\u2014"}, {"id": "GOV-04", "q": "Does each agent have an established identity, acceptable use policy, prohibited actions, and clear agent goals?", "cl": null, "crit": "High", "see": "IAM-01", "iso42": "A.9.2, A.9.4", "iso27": "5.10", "owasp": "LLM06"}, {"id": "GOV-05", "q": "Are periodic security and risk reviews required before agent capabilities are expanded?", "cl": null, "crit": "Medium", "see": "SDL-11", "iso42": "A.5.2", "iso27": "5.8", "owasp": "LLM06"}, {"id": "GOV-06", "q": "Is agent governance aligned to enterprise security, privacy, legal, and third-party risk programs?", "cl": null, "crit": "Medium", "see": "SUP-04", "iso42": "A.2.3, A.10.3", "iso27": "5.1, 5.19", "owasp": "\u2014"}, {"id": "SDL-01", "q": "Are AI agents integrated into the secure SDLC, applying secure-by-design and privacy-by-design principles with controlled development, testing, and production release processes?", "cl": 13, "crit": "High", "see": "\u2014", "iso42": "A.6.1.3, A.6.2.5", "iso27": "8.25, 8.31", "owasp": "\u2014"}, {"id": "SDL-02", "q": "Is each agent workflow threat-modelled, including user input, retrieval, memory, inference, tool calls, APIs, human approvals, output delivery, tenant boundaries, and privileged actions?", "cl": 13, "crit": "High", "see": "GOV-02", "iso42": "A.6.1.3, A.6.2.2", "iso27": "8.27", "owasp": "LLM01, LLM06"}, {"id": "SDL-03", "q": "Are AI-specific threats addressed: prompt injection, indirect prompt injection, data exfiltration, SSRF, memory poisoning, cross-user/cross-tenant leakage, excessive permissions, malicious tool output, model inversion, unsafe file ingestion, and compromised third parties?", "cl": 13, "crit": "High", "see": "PID-01", "iso42": "A.6.1.3", "iso27": "8.27", "owasp": "LLM01, LLM02, LLM04, LLM06, LLM08"}, {"id": "SDL-04", "q": "Are reasoning, retrieval, and action execution separated into controlled stages, with least-privilege tool access, external policy enforcement, and explicit authorization for high-impact actions?", "cl": 9, "crit": "High", "see": "SEG-07, POL-01", "iso42": "A.6.2.2", "iso27": "8.27", "owasp": "LLM05, LLM06"}, {"id": "SDL-05", "q": "Is formal change management applied to prompts, models, policy logic, tool permissions, memory configuration, retrieval pipelines, orchestration logic, external providers, and action scope?", "cl": 13, "crit": "High", "see": "SDL-11, SUP-03", "iso42": "A.6.2.5", "iso27": "8.32", "owasp": "\u2014"}, {"id": "SDL-06", "q": "Are version control, approval history, auditability, and rollback capability maintained for prompts, policies, model versions, orchestration logic, evaluation datasets, configurations, and IaC?", "cl": 13, "crit": "Medium", "see": "RES-03", "iso42": "A.6.2.7", "iso27": "8.9, 8.32", "owasp": "\u2014"}, {"id": "SDL-07", "q": "Is conventional security testing performed: code review, SAST, DAST, SCA, API testing, secrets scanning, dependency scanning, IaC scanning, container scanning, and cloud configuration review?", "cl": 13, "crit": "Medium", "see": "SUP-02", "iso42": "A.6.2.4", "iso27": "8.8, 8.29", "owasp": "LLM03"}, {"id": "SDL-08", "q": "Is AI-specific adversarial testing conducted for jailbreaks, prompt injection, data exfiltration, unsafe tool use, memory poisoning, cross-user leakage, SSRF, malicious document ingestion, guardrail bypass, and unauthorized actions?", "cl": 14, "crit": "High", "see": "\u2014", "iso42": "A.6.2.4", "iso27": "8.29", "owasp": "LLM01, LLM02, LLM06"}, {"id": "SDL-09", "q": "Are LLM-specific regression tests maintained for known attack patterns, policy bypasses, guardrail failures, sensitive data exposure, tool misuse, retrieval manipulation, and memory misuse?", "cl": 14, "crit": "Medium", "see": "SDL-08", "iso42": "A.6.2.4", "iso27": "8.29", "owasp": "LLM01, LLM08"}, {"id": "SDL-10", "q": "Are privacy and confidentiality controls validated, including data minimization, sensitive data filtering, output limits, differential privacy or privacy-preserving techniques (where applicable), and prevention of unauthorized disclosure?", "cl": null, "crit": "Medium", "see": "DAT-03", "iso42": "A.7.2", "iso27": "5.34, 8.11, 8.12", "owasp": "LLM02"}, {"id": "SDL-11", "q": "Are risk reassessed and controls retested when models, prompts, tools, permissions, memory behaviour, retrieval sources, providers, deployment environments, or action scope change?", "cl": 13, "crit": "High", "see": "GOV-05", "iso42": "A.5.2, A.6.2.4", "iso27": "8.32", "owasp": "\u2014"}, {"id": "SDL-12", "q": "Are deployed agents continuously monitored for anomalous behaviour, tool usage, policy violations, retrieval activity, memory access, guardrail failures, unsafe outputs, and emerging attack patterns?", "cl": 11, "crit": "High", "see": "MON-03", "iso42": "A.6.2.6", "iso27": "8.16", "owasp": "LLM06, LLM10"}, {"id": "SDL-13", "q": "Is behavioural, performance, and governance drift detection conducted to identify degradation in quality, bias, policy adherence, refusal behaviour, tool-use behaviour, and safety controls?", "cl": null, "crit": "Medium", "see": "SUP-06", "iso42": "A.6.2.6", "iso27": "8.16", "owasp": "LLM09"}, {"id": "SDL-14", "q": "Is AI supply chain risk managed across models, datasets, plugins, APIs, libraries, containers, external providers, and infrastructure dependencies?", "cl": 12, "crit": "Medium", "see": "SUP-01 to SUP-07", "iso42": "A.7.5, A.10.3", "iso27": "5.19, 5.21", "owasp": "LLM03, LLM04"}, {"id": "SDL-15", "q": "Are security release gates, rollback procedures, and incident response integration established for AI-specific failures such as data leakage, prompt injection compromise, unsafe tool execution, or provider compromise?", "cl": 15, "crit": "Medium", "see": "MON-04, RES-03", "iso42": "A.6.2.5", "iso27": "5.24, 8.32", "owasp": "\u2014"}, {"id": "IAM-01", "q": "Is per-agent and per-workload identity used, with no shared accounts or long-lived tokens?", "cl": 3, "crit": "High", "see": "GOV-04", "iso42": "\u2014", "iso27": "5.16", "owasp": "LLM06"}, {"id": "IAM-02", "q": "Is workload identity and federated access preferred over static credentials?", "cl": 4, "crit": "High", "see": "DAT-02", "iso42": "\u2014", "iso27": "5.16, 5.17", "owasp": "\u2014"}, {"id": "IAM-03", "q": "Are short-lived credentials issued with automatic rotation?", "cl": 4, "crit": "High", "see": "DAT-02", "iso42": "\u2014", "iso27": "5.17, 8.5", "owasp": "\u2014"}, {"id": "IAM-04", "q": "Are least-privilege controls applied to every tool, API, knowledge source, and data store the agent can access?", "cl": 3, "crit": "High", "see": "TAPI-01", "iso42": "\u2014", "iso27": "5.15, 5.18, 8.3", "owasp": "LLM06"}, {"id": "IAM-05", "q": "Are RBAC/ABAC and just-in-time elevation used for sensitive functions?", "cl": 3, "crit": "Medium", "see": "POL-04", "iso42": "\u2014", "iso27": "5.15, 8.2", "owasp": "LLM06"}, {"id": "IAM-06", "q": "Is MFA required for operators and administrators?", "cl": null, "crit": "High", "see": "\u2014", "iso42": "\u2014", "iso27": "8.5", "owasp": "\u2014"}, {"id": "IAM-07", "q": "Are identities separated for human users and functions, the agent runtime, the tool runner, and admin/operator?", "cl": 3, "crit": "Medium", "see": "\u2014", "iso42": "\u2014", "iso27": "5.3, 5.16", "owasp": "LLM06"}, {"id": "IAM-08", "q": "Are authorization checks enforced not only for tools but also for memory retrieval and context access?", "cl": 8, "crit": "High", "see": "DAT-07", "iso42": "\u2014", "iso27": "8.3", "owasp": "LLM02, LLM08"}, {"id": "SEG-01", "q": "Do tool execution, code interpretation, browser automation, and file parsing run in sandboxed environments (containers, VMs, or microVMs)?", "cl": 5, "crit": "High", "see": "\u2014", "iso42": "A.4.5", "iso27": "8.27", "owasp": "LLM05, LLM06"}, {"id": "SEG-02", "q": "Are sandboxes restricted: read-only file systems where feasible, no privileged containers, limited syscalls, ephemeral execution, and no default egress?", "cl": 5, "crit": "High", "see": "SEG-04", "iso42": "\u2014", "iso27": "8.9", "owasp": "LLM05"}, {"id": "SEG-03", "q": "Is agent infrastructure placed in segmented networks?", "cl": 5, "crit": "Medium", "see": "\u2014", "iso42": "\u2014", "iso27": "8.20, 8.22", "owasp": "\u2014"}, {"id": "SEG-04", "q": "Is outbound traffic restricted to approved domains, APIs, and destinations?", "cl": 6, "crit": "High", "see": "TAPI-03", "iso42": "\u2014", "iso27": "8.21, 8.23", "owasp": "LLM02, LLM06"}, {"id": "SEG-05", "q": "Are outbound requests routed through inspection or proxy layers when practical?", "cl": 6, "crit": "Medium", "see": "MON-03", "iso42": "\u2014", "iso27": "8.23", "owasp": "LLM02"}, {"id": "SEG-06", "q": "Is access blocked to internal admin interfaces, metadata services, and non-approved internal network resources?", "cl": 5, "crit": "High", "see": "TAPI-05", "iso42": "\u2014", "iso27": "8.20, 8.22", "owasp": "LLM06"}, {"id": "SEG-07", "q": "Is reasoning separated from execution so the model cannot directly invoke unrestricted actions?", "cl": 9, "crit": "High", "see": "SDL-04, POL-01", "iso42": "A.6.2.2", "iso27": "8.27", "owasp": "LLM05, LLM06"}, {"id": "PID-01", "q": "Is all external content treated as untrusted input, including webpages, emails, PDFs, retrieved documents, user attachments, and tool outputs?", "cl": 7, "crit": "High", "see": "TAPI-06", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM01"}, {"id": "PID-02", "q": "Is external content prevented from overriding system or developer instructions?", "cl": 7, "crit": "High", "see": "\u2014", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM01, LLM07"}, {"id": "PID-03", "q": "Are content boundaries, contextual labelling, and instruction hierarchy enforcement used?", "cl": 7, "crit": "Medium", "see": "\u2014", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM01"}, {"id": "PID-04", "q": "Is agent behaviour limited with allowlisted tools and explicit action constraints?", "cl": 7, "crit": "High", "see": "TAPI-03", "iso42": "A.9.4", "iso27": "8.26", "owasp": "LLM01, LLM06"}, {"id": "PID-05", "q": "Are inputs and outputs filtered for exfiltration attempts, credential requests, policy bypass language, and hidden or obfuscated instructions?", "cl": 7, "crit": "High", "see": "DAT-04", "iso42": "\u2014", "iso27": "8.12", "owasp": "LLM01, LLM02, LLM05"}, {"id": "PID-06", "q": "Is retrieved content prevented from directly triggering actions without a separate policy decision?", "cl": 9, "crit": "High", "see": "POL-01", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM01, LLM06"}, {"id": "PID-07", "q": "Are data provenance and source trust levels tracked so that low-trust content does not receive high action authority?", "cl": 7, "crit": "Medium", "see": "DAT-09", "iso42": "A.7.5", "iso27": "8.26", "owasp": "LLM01, LLM04"}, {"id": "DAT-01", "q": "Are secrets never placed in prompts?", "cl": null, "crit": "High", "see": "DAT-02", "iso42": "\u2014", "iso27": "5.17", "owasp": "LLM02, LLM07"}, {"id": "DAT-02", "q": "Are a secrets manager and scoped tokens used for all credentials?", "cl": 4, "crit": "High", "see": "IAM-02", "iso42": "\u2014", "iso27": "5.17, 8.24", "owasp": "LLM02"}, {"id": "DAT-03", "q": "Are data classification, minimization, retention limits, and encryption applied to prompts, logs, traces, memory, and outputs? (Record decisions on the Data Handling tab.)", "cl": null, "crit": "High", "see": "SDL-10", "iso42": "A.7.2", "iso27": "5.12, 8.10, 8.24", "owasp": "LLM02"}, {"id": "DAT-04", "q": "Is sensitive data redacted or tokenized in logs and observability platforms?", "cl": 11, "crit": "High", "see": "MON-01", "iso42": "\u2014", "iso27": "8.11, 8.15", "owasp": "LLM02"}, {"id": "DAT-05", "q": "Are memory and context isolated by tenant, user, and use case?", "cl": 8, "crit": "High", "see": "DAT-08", "iso42": "\u2014", "iso27": "8.3", "owasp": "LLM02, LLM08"}, {"id": "DAT-06", "q": "Are retention limits and time-to-live (TTL) values applied to persistent memory?", "cl": 8, "crit": "Medium", "see": "\u2014", "iso42": "\u2014", "iso27": "8.10", "owasp": "LLM02"}, {"id": "DAT-07", "q": "Are authorization checks required before an agent can retrieve stored memory or prior interactions?", "cl": 8, "crit": "High", "see": "IAM-08", "iso42": "\u2014", "iso27": "8.3", "owasp": "LLM02, LLM08"}, {"id": "DAT-08", "q": "Is cross-session and cross-tenant leakage prevented?", "cl": 8, "crit": "High", "see": "SDL-08", "iso42": "\u2014", "iso27": "8.3, 8.29", "owasp": "LLM02, LLM08"}, {"id": "DAT-09", "q": "Are the provenance and integrity of stored memory and retrieved context validated to reduce poisoning risk?", "cl": 7, "crit": "Medium", "see": "PID-07", "iso42": "A.7.5", "iso27": "\u2014", "owasp": "LLM04, LLM08"}, {"id": "TAPI-01", "q": "Are agent-accessible tools placed behind an API gateway, action broker, or policy enforcement layer?", "cl": 9, "crit": "High", "see": "POL-01", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM06"}, {"id": "TAPI-02", "q": "Are requests validated with authentication, authorization, schema enforcement, parameter constraints, quotas, and rate limits?", "cl": 9, "crit": "High", "see": "RES-01", "iso42": "\u2014", "iso27": "8.5, 8.26", "owasp": "LLM05, LLM10"}, {"id": "TAPI-03", "q": "Are explicit allowlists used for domains, endpoints, commands, repositories, and file paths?", "cl": 6, "crit": "High", "see": "SEG-04", "iso42": "\u2014", "iso27": "8.3, 8.23", "owasp": "LLM06"}, {"id": "TAPI-04", "q": "Are dangerous primitives blocked, such as arbitrary shell access, unrestricted file reads, and unrestricted URL fetches?", "cl": 9, "crit": "High", "see": "SEG-02", "iso42": "\u2014", "iso27": "8.27", "owasp": "LLM06"}, {"id": "TAPI-05", "q": "Is there protection against SSRF, internal reconnaissance, and unintended access to cloud metadata services?", "cl": 6, "crit": "High", "see": "SEG-06", "iso42": "\u2014", "iso27": "8.20, 8.26", "owasp": "LLM06"}, {"id": "TAPI-06", "q": "Are outputs from tools validated before being used as context for later decisions?", "cl": 7, "crit": "High", "see": "PID-01", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM05"}, {"id": "POL-01", "q": "Is a deterministic policy enforcement point (PEP) implemented between agent outputs and action-capable systems?", "cl": 9, "crit": "High", "see": "TAPI-01", "iso42": "\u2014", "iso27": "8.26, 8.27", "owasp": "LLM05, LLM06"}, {"id": "POL-02", "q": "Does the PEP validate the action type, target system, actor identity, authorization, business rules, risk thresholds, and required approvals?", "cl": 9, "crit": "High", "see": "\u2014", "iso42": "\u2014", "iso27": "8.26", "owasp": "LLM06"}, {"id": "POL-03", "q": "Is human-in-the-loop (HITL) approval required for destructive, financial, legal, regulated, or irreversible actions?", "cl": 10, "crit": "High", "see": "\u2014", "iso42": "A.9.2", "iso27": "\u2014", "owasp": "LLM06"}, {"id": "POL-04", "q": "Are step-up authentication, dual control, or transaction confirmation used for sensitive workflows?", "cl": 10, "crit": "Medium", "see": "IAM-05", "iso42": "\u2014", "iso27": "5.3, 8.5", "owasp": "LLM06"}, {"id": "POL-05", "q": "Are clear execution summaries presented so humans can verify exactly what will happen?", "cl": 10, "crit": "Medium", "see": "\u2014", "iso42": "A.8.2", "iso27": "\u2014", "owasp": "LLM06, LLM09"}, {"id": "POL-06", "q": "Is read-only or recommendation-only mode supported for higher-risk agent use cases?", "cl": 15, "crit": "Medium", "see": "RES-04", "iso42": "A.9.4", "iso27": "\u2014", "owasp": "LLM06"}, {"id": "MON-01", "q": "Are prompts, responses, retrieved sources, content hashes, tool invocations, action decisions, approvals, identity context, and policy violations logged, with redaction where needed?", "cl": 11, "crit": "High", "see": "DAT-04", "iso42": "A.6.2.8", "iso27": "8.15", "owasp": "\u2014"}, {"id": "MON-02", "q": "Is logging centralized and tamper-resistant?", "cl": 11, "crit": "High", "see": "\u2014", "iso42": "A.6.2.8", "iso27": "8.15", "owasp": "\u2014"}, {"id": "MON-03", "q": "Is there monitoring for unusual tool use, excessive data retrieval, repeated bypass attempts, anomalous outbound traffic, sudden changes in model behaviour, and abuse patterns?", "cl": 11, "crit": "High", "see": "SDL-12", "iso42": "A.6.2.6", "iso27": "8.16", "owasp": "LLM01, LLM06, LLM10"}, {"id": "MON-04", "q": "Are agent-specific incident response playbooks in place (prompt injection, tool compromise, model/provider compromise, data leakage, cross-tenant exposure, memory poisoning)?", "cl": null, "crit": "High", "see": "SDL-15", "iso42": "A.8.4", "iso27": "5.24, 5.26", "owasp": "\u2014"}, {"id": "MON-05", "q": "Are escalation paths and containment procedures defined, including disabling tools or shifting the agent to read-only mode?", "cl": 15, "crit": "High", "see": "RES-02", "iso42": "\u2014", "iso27": "5.24, 5.26", "owasp": "\u2014"}, {"id": "SUP-01", "q": "Are versions of models, model endpoints, embeddings, frameworks, plugins, and dependencies pinned and verified?", "cl": 12, "crit": "High", "see": "\u2014", "iso42": "\u2014", "iso27": "8.19, 8.32", "owasp": "LLM03"}, {"id": "SUP-02", "q": "Are SBOM, AI-BOM, dependency scanning, artifact signing, and provenance validation used?", "cl": 12, "crit": "Medium", "see": "SDL-07", "iso42": "A.7.5", "iso27": "8.8", "owasp": "LLM03, LLM04"}, {"id": "SUP-03", "q": "Is the ability to publish or update tools, prompts, agent policies, and integrations restricted?", "cl": 13, "crit": "High", "see": "SDL-05", "iso42": "\u2014", "iso27": "8.4, 8.32", "owasp": "LLM03, LLM07"}, {"id": "SUP-04", "q": "Are third-party model and tool providers vetted through supplier risk assessment?", "cl": null, "crit": "Medium", "see": "GOV-06", "iso42": "A.10.3", "iso27": "5.19, 5.21", "owasp": "LLM03"}, {"id": "SUP-05", "q": "Are security-related obligations contractually defined, such as data handling, retention, model training use, security controls, residency, and breach notification?", "cl": null, "crit": "High", "see": "\u2014", "iso42": "A.10.2, A.10.3", "iso27": "5.20, 5.23", "owasp": "LLM02, LLM03"}, {"id": "SUP-06", "q": "Is there monitoring for provider-side changes, behaviour drift, or endpoint spoofing?", "cl": null, "crit": "Medium", "see": "SDL-13", "iso42": "A.10.3", "iso27": "5.22", "owasp": "LLM03, LLM09"}, {"id": "SUP-07", "q": "Is rollback capability maintained for model or tool changes?", "cl": 15, "crit": "Medium", "see": "RES-03", "iso42": "\u2014", "iso27": "8.32", "owasp": "\u2014"}, {"id": "RES-01", "q": "Are rate limits, quotas, token budgets, conversation limits, timeouts, retries with caps, and circuit breakers implemented?", "cl": null, "crit": "Medium", "see": "TAPI-02", "iso42": "\u2014", "iso27": "8.6", "owasp": "LLM10"}, {"id": "RES-02", "q": "Are global and per-capability kill switches in place to disable unsafe agent behaviour quickly?", "cl": 15, "crit": "High", "see": "MON-05", "iso42": "\u2014", "iso27": "\u2014", "owasp": "LLM06"}, {"id": "RES-03", "q": "Is rollback of model versions, prompts, policies, tool permissions, and dependencies supported?", "cl": 15, "crit": "High", "see": "SDL-06, SUP-07", "iso42": "\u2014", "iso27": "8.32", "owasp": "\u2014"}, {"id": "RES-04", "q": "Are safe fallback modes designed (read-only, recommendation-only, manual approval), and can critical workflows revert to manual operation if the agent is disabled?", "cl": 15, "crit": "High", "see": "POL-06", "iso42": "\u2014", "iso27": "5.29, 5.30", "owasp": "\u2014"}], "checklist": ["Inventory all agents, tools, models, memory stores, and providers.", "Define trust boundaries and owners.", "Use per-agent identity and least privilege.", "Prefer short-lived credentials and federated identity.", "Employ sandbox execution and segment networks.", "Deny outbound access by default.", "Treat all retrieved content and tool output as untrusted.", "Protect memory with tenant/session isolation and retention controls.", "Put all tool actions behind a policy enforcement point.", "Require human approval for high-risk actions.", "Log prompts, tool calls, decisions, and approvals with redaction.", "Pin models and dependencies; use SBOMs and signing.", "Integrate secure SDLC and change control.", "Conduct red team exercises continuously for prompt injection and tool misuse.", "Add kill switches, rollback capability, and safe-mode operations."], "dataClasses": [{"cls": "Public", "ex": "Public website content, press releases, published brochures, approved job postings", "base": "Store in approved business systems; protect from unauthorized changes. Send through normal business and public channels. Public to access; limit edit access. Keep as useful for business, archival, or legal needs. Normal disposal.", "acc": "Yes", "ctx": "Yes", "mem": "Yes", "log": "Yes", "ext": "Yes", "ctl": "Agents may read freely, but content fetched from the open web is still untrusted input (PID-01). Agents should not publish or edit public content without approval (POL-03)."}, {"cls": "Internal", "ex": "Internal procedures, org charts, team documents, routine internal email, meeting notes", "base": "Store in approved company systems only; avoid personal or unapproved cloud storage. Send through approved company email, chat, and collaboration tools. Employees and approved third parties with business need. Per business retention schedule. Standard deletion.", "acc": "Conditional", "ctx": "Yes", "mem": "Conditional", "log": "Yes", "ext": "Conditional", "ctl": "Restrict to agents with a business need; approved model providers under contract only (SUP-05); memory TTL aligned to the retention schedule (DAT-06); no forwarding to unapproved destinations (SEG-04)."}, {"cls": "Confidential", "ex": "Customer records, employee records, contracts, financial reports, nonpublic strategy documents, most personal data", "base": "Store in approved managed systems; encryption at rest required. Send via approved secure methods, encrypted in transit, recipients verified. Authorized users only, role-based, logged and reviewed. Per documented retention schedule. Secure deletion; approved shredding and secure wipe.", "acc": "Conditional", "ctx": "Conditional", "mem": "Conditional", "log": "Redacted only", "ext": "Conditional", "ctl": "Authorization check on every retrieval and memory read (IAM-08, DAT-07); per-tenant/user memory isolation (DAT-05); provider contract covers training use, retention, residency, breach notice (SUP-05); redact in logs (DAT-04); outbound actions carrying this data pass the PEP (POL-01)."}, {"cls": "Restricted / Highly sensitive", "ex": "Health data, special category personal data, government ID numbers, payment data, passwords, cryptographic keys, M&A data, security investigation files", "base": "Store only in explicitly approved, tightly controlled systems; strong encryption required. Send via approved secure transfer only; recipient identity and authorization confirmed. Strict need-to-know, formal approval, MFA, tightly controlled privileged access. Shortest justified retention. Verified secure destruction.", "acc": "No", "ctx": "No", "mem": "No", "log": "No", "ext": "No", "ctl": "Default deny. Passwords and keys never enter prompts (DAT-01). If a use case is approved by exception: tokenize or redact before inference, dedicated approved endpoint, no persistent memory, HITL approval for any action that transmits or changes this data (POL-03), privileged access review of logs. Regulated data (e.g., PHI, PCI) carries further obligations beyond this guide."}]};
+const CAT = Object.fromEntries(D.cats.map(c=>[c.code,c.name]));
+const CTL = Object.fromEntries(D.controls.map(c=>[c.id,c]));
+const ST_LABEL = {I:"Implemented",P:"Partially implemented",N:"Not implemented",NA:"Not applicable"};
+const ST_SHORT = {I:"Impl.",P:"Partial",N:"Not impl.",NA:"N/A"};
+const MAT_LABEL = ["Non-existent","Initial","Repeatable","Defined","Managed","Optimized"];
+const DH_FIELDS = [["acc","Agent may access?"],["ctx","In prompts / context?"],["mem","In persistent memory?"],["log","In logs / traces?"],["ext","Sent to external model provider?"]];
+const DH_OPTS = ["Yes","No","Conditional","Redacted only"];
+const LS_KEY = "aiagent-assessments-v1", LS_CUR = "aiagent-current-v1";
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const $ = id => document.getElementById(id);
+function lsGet(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
+
+/* ---------- state ---------- */
+let backend = null, list = [], cur = null, view = "overview";
+let dirty = false, saving = false, saveTimer = null, readOnly = false, expanded = new Set(), openCat = new Set(), editingNote = null, deletingNote = null;
+const filt = {q:"", cat:"", st:"", pr:""};
+
+function blankAssessment(){
+  const dh = {};
+  D.dataClasses.forEach(c => dh[c.cls] = {agents:"", acc:c.acc, ctx:c.ctx, mem:c.mem, log:c.log, ext:c.ext, cur:"", gap:""});
+  const now = new Date().toISOString();
+  return {name:"New assessment", org:"", agent:"", desc:"", assessor:"", date:now.slice(0,10), version:"Draft", createdAt:now, updatedAt:now, r:{}, ck:{}, cn:{}, notes:[], dh};
+}
+function newId(){ return "a-" + Date.now().toString(36) + Math.random().toString(36).slice(2,7) }
+function resp(id){ return (cur && cur.r && cur.r[id]) || {} }
+function crit(id){ return resp(id).c || CTL[id].crit }
+function score(s){ return s==="I"?1 : s==="P"?0.5 : s==="N"?0 : null }
+function prio(id){
+  const s = resp(id).s, c = crit(id);
+  if(!s || s==="I" || s==="NA") return "";
+  if(c==="High" && s==="N") return "P1";
+  if(c==="High" || (c==="Medium" && s==="N")) return "P2";
+  return "P3";
+}
+function stats(ids){
+  const o = {n:ids.length, I:0,P:0,N:0,NA:0,U:0, P1:0,P2:0,P3:0, matSum:0, matN:0};
+  ids.forEach(id => {
+    const r = resp(id); if(r.s) o[r.s]++; else o.U++;
+    const p = prio(id); if(p) o[p]++;
+    if(typeof r.m === "number"){ o.matSum += r.m; o.matN++ }
+  });
+  const d = o.I+o.P+o.N;
+  o.cov = d ? (o.I + 0.5*o.P)/d : null;
+  o.mat = o.matN ? o.matSum/o.matN : null;
+  o.assessed = o.n - o.U;
+  return o;
+}
+const pct = v => v==null ? "—" : Math.round(v*100) + "%";
+const idsIn = code => D.controls.filter(c => c.id.split("-")[0]===code).map(c=>c.id);
+function ckStatus(n){
+  const ids = D.controls.filter(c=>c.cl===n).map(c=>c.id), s = stats(ids);
+  const st = s.cov==null ? "Not assessed" : s.cov===1 ? "Met" : s.cov>=0.5 ? "Partially met" : "Not met";
+  return {ids, s, st};
+}
+
+/* ---------- backends ---------- */
+function localBackend(){
+  let cb = null, mem = {};
+  try{ mem = JSON.parse(lsGet(LS_KEY) || "{}") || {} }catch(e){ mem = {} }
+  const persist = () => lsSet(LS_KEY, JSON.stringify(mem));
+  const emit = () => { cb && cb(Object.entries(mem).map(([id,v])=>({...structuredClone(v),id}))) };
+  return {
+    kind:"local",
+    subscribe(fn){ cb = fn; emit(); return () => { cb = null } },
+    async save(id, body){ mem[id] = structuredClone(body); persist(); setTimeout(emit, 0) },
+    async remove(id){ delete mem[id]; persist(); emit() }
+  };
+}
+function dbBackend(db){
+  const col = db.collection("assessments");
+  return {
+    kind:"db",
+    subscribe(fn, onErr){
+      return col.onSnapshot(snap => fn(snap.docs.map(d => ({...d.data(), id:d.id})), snap.metadata), e => onErr && onErr(e));
+    },
+    async save(id, body){ await col.doc(id).set(body) },
+    async remove(id){ await col.doc(id).delete() }
+  };
+}
+
+function setSave(text, err){ const el = $("savestate"); el.textContent = text; el.classList.toggle("err", !!err); el.classList.toggle("ok", !err && !!backend && backend.kind==="db"); el.classList.toggle("local", !err && !!backend && backend.kind==="local") }
+const savedText = () => backend && backend.kind==="db" ? "Saved to this page" : "Saved in this browser only";
+
+function onList(items, meta){
+  list = items.slice().sort((a,b) => String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));
+  if(cur && (dirty || saving) && !list.some(a => a.id === cur.id)){ list.unshift(cur); renderPicker(); return }
+  const want = cur ? cur.id : lsGet(LS_CUR);
+  const fresh = list.find(a => a.id === want) || list[0] || null;
+  const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && $("main").contains(document.activeElement);
+  if(!cur || !fresh || fresh.id !== cur.id){
+    cur = fresh ? structuredClone(fresh) : null; renderAll();
+  } else if(!dirty && !saving && !(meta && meta.hasPendingWrites) && !typing){
+    if(JSON.stringify(fresh) !== JSON.stringify(cur)){ cur = structuredClone(fresh); renderAll() }
+    else renderPicker();
+  } else renderPicker();
+  if(!dirty && !saving) setSave(savedText());
+  renderBanner();
+}
+
+/* ---------- saving ---------- */
+function touch(){
+  if(readOnly || !cur) return;
+  cur.updatedAt = new Date().toISOString();
+  dirty = true; setSave("Saving…");
+  clearTimeout(saveTimer); saveTimer = setTimeout(flush, 700);
+}
+async function flush(retried){
+  if(saving){ clearTimeout(saveTimer); saveTimer = setTimeout(flush, 400); return }
+  if(!dirty || !cur) return;
+  saving = true; dirty = false;
+  const {id, ...body} = structuredClone(cur);
+  if(JSON.stringify(body).length > 240000){ dirty = true; saving = false; setSave("Too large to save: an assessment can hold about 240 KB. Shorten or remove some notes.", true); return }
+  try{
+    await backend.save(id, body);
+    setSave(savedText());
+  }catch(e){
+    const code = e && e.code;
+    if(code === "invalid_argument"){ readOnly = true; setSave("View only", true); renderAll() }
+    else if(code === "not_granted" && backend.kind === "db"){ localReason = "denied"; dirty = true; saving = false; start(localBackend()); await flush(); renderAll(); return }
+    else if(code === "unavailable" && !retried){ dirty = true; saving = false; setTimeout(()=>flush(true), 800 + Math.random()*800); return }
+    else if(code === "quota_exceeded"){ dirty = true; setSave("Storage is full. Delete an old assessment, then edit again.", true) }
+    else { dirty = true; setSave("Couldn't save. Your edits are kept on this page; make another change to retry.", true) }
+  }
+  saving = false;
+  if(dirty && !readOnly) { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 700) }
+}
+
+/* ---------- render: header ---------- */
+function renderPicker(){
+  const sel = $("asmt-select");
+  sel.innerHTML = list.map(a => `<option value="${esc(a.id)}"${cur&&a.id===cur.id?" selected":""}>${esc(a.agent || a.name || "Untitled")}${a.org?" · "+esc(a.org):""}</option>`).join("") || `<option>No assessments</option>`;
+  sel.disabled = !list.length;
+  ["btn-dup","btn-export","btn-export-json","btn-del"].forEach(b => { if($(b)) $(b).disabled = !cur });
+  ["btn-new","btn-dup","btn-del","btn-new-empty","btn-import","btn-import-empty"].forEach(b => { if(readOnly && $(b)) $(b).disabled = true });
+}
+function renderStrip(){
+  if(!cur){ $("strip").innerHTML = ""; return }
+  const s = stats(D.controls.map(c=>c.id));
+  let met = 0, ass = 0;
+  for(let n=1;n<=15;n++){ const k = ckStatus(n), o = (cur.ck[n]||{}).o; const st = o || k.st; if(st!=="Not assessed" && st!=="Not applicable") ass++; if(st==="Met") met++ }
+  $("strip").innerHTML = `
+    <div class="kpi"><b>${pct(s.cov)}</b><span>Coverage</span></div>
+    <div class="kpi"><b>${s.assessed}<small style="font-size:14px;color:var(--muted)">/80</small></b><span>Assessed</span></div>
+    <div class="kpi ${s.P1?"alert":""}"><b>${s.P1}</b><span>Open P1</span></div>
+    <div class="kpi"><b>${s.P2}</b><span>Open P2</span></div>
+    <div class="kpi"><b>${met}<small style="font-size:14px;color:var(--muted)">/${ass||15}</small></b><span>Checklist met</span></div>`;
+}
+function renderBanner(){
+  let h = "";
+  if(cur && cur.example) h += `<div class="banner">This is an example assessment with sample answers, to show how the tool works. Create a new assessment for real work, or delete this one.</div>`;
+  if(readOnly) h += `<div class="banner">You can view this assessment but not change it. Ask the owner for Contributor or Editor access to edit.</div>`;
+  if(backend && backend.kind==="local"){
+    const msg = {
+      prompt:["Saving to this page needs your permission. Until you allow it, your changes stay in this browser only.", `<button class="btn primary" type="button" id="st-allow">Allow saving</button>`],
+      denied:["Saving to this page is turned off for you, so your changes stay in this browser only. Turn it back on in this page's permissions.", `<button class="btn" type="button" id="st-manage">Open permissions</button>`],
+      reload:["Saving is allowed now. Reload the page to start saving to it. Your changes in this browser are kept, and you can move them to the page after reloading.", ""],
+      noviewer:["This copy isn't open inside claude.ai, so it can only save in this browser. Open the page from claude.ai or the Claude app to save with it.", ""],
+      unavailable:["This view can't reach the page's storage, which happens when you're signed out or opening a public link. Your changes stay in this browser only. Sign in to claude.ai and reopen the page to save with it.", ""]
+    }[localReason || "unavailable"];
+    h += `<div class="banner" role="status"><span>${msg[0]}</span>${msg[1]}</div>`;
+  }
+  if(backend && backend.kind==="db" && !hideMigrate){
+    const stranded = strandedLocal();
+    if(stranded.length) h += `<div class="banner store" role="status"><span>${stranded.length} assessment${stranded.length>1?"s are":" is"} saved only in this browser: ${stranded.slice(0,4).map(a=>"“"+esc(a.agent||a.name||"Untitled")+"”").join(", ")}${stranded.length>4?", …":""}. Move ${stranded.length>1?"them":"it"} to this page so ${stranded.length>1?"they're":"it's"} kept with the page and available on your other devices.</span><button class="btn primary" type="button" id="st-migrate"${migrating||readOnly?" disabled":""}>${migrating?"Moving…":"Move to this page"}</button><button class="btn" type="button" id="st-later">Not now</button></div>`;
+  }
+  $("banner").innerHTML = h;
+  if($("st-allow")) $("st-allow").onclick = allowSaving;
+  if($("st-manage")) $("st-manage").onclick = openPermissions;
+  if($("st-migrate")) $("st-migrate").onclick = migrateLocal;
+  if($("st-later")) $("st-later").onclick = () => { hideMigrate = true; renderBanner() };
+}
+
+/* ---------- render: overview ---------- */
+function renderOverview(){
+  const all = stats(D.controls.map(c=>c.id));
+  const rows = D.cats.map(c => {
+    const s = stats(idsIn(c.code)), w = k => (s[k]/s.n*100).toFixed(2)+"%";
+    return `<div class="catrow">
+      <div class="nm"><button type="button" data-gocat="${c.code}">${esc(c.name)}</button><span class="mono" style="color:var(--muted);font-weight:400">${s.assessed}/${s.n}${s.P1?` · <span style="color:var(--p1);font-weight:600">${s.P1} P1</span>`:""}</span></div>
+      <div class="stack" role="img" aria-label="${esc(c.name)}: ${s.I} implemented, ${s.P} partial, ${s.N} not implemented, ${s.NA} not applicable, ${s.U} not assessed"><i class="I" style="width:${w("I")}"></i><i class="P" style="width:${w("P")}"></i><i class="N" style="width:${w("N")}"></i><i class="NA" style="width:${w("NA")}"></i></div>
+      <div class="pct">${pct(s.cov)}</div>
+      <div class="mat" title="Average maturity">${s.mat==null?"—":s.mat.toFixed(1)}</div>
+      ${(cur.cn||{})[c.code] ? `<div class="cn-snip">${esc(cur.cn[c.code].length>180 ? cur.cn[c.code].slice(0,180)+"…" : cur.cn[c.code])}</div>` : ""}
+    </div>`;
+  }).join("");
+  const gaps = D.controls.filter(c => prio(c.id)==="P1" || prio(c.id)==="P2")
+    .sort((a,b) => prio(a.id).localeCompare(prio(b.id)));
+  const gapHtml = gaps.length ? `<ul class="gaplist">${gaps.slice(0,14).map(c => {
+      const r = resp(c.id);
+      return `<li><span class="chip ${prio(c.id)}">${prio(c.id)}</span><a href="#controls" data-goctl="${c.id}"><span class="id">${c.id}</span> ${esc(c.q)}${r.ow?`<br><small style="color:var(--muted)">Owner: ${esc(r.ow)}${r.td?" · due "+esc(r.td):""}</small>`:""}</a></li>`;
+    }).join("")}</ul>${gaps.length>14?`<div class="empty-note">${gaps.length-14} more. Filter the Controls view by priority to see them all.</div>`:""}`
+    : `<div class="empty-note">No open P1 or P2 gaps${all.assessed?"":" yet. Assess controls on the Controls tab"}.</div>`;
+  $("v-overview").innerHTML = `
+    <h2>${esc(cur.agent || cur.name || "Untitled assessment")}</h2>
+    <p class="lede">${esc([cur.org, cur.assessor && "Assessor: "+cur.assessor, cur.date, cur.version].filter(Boolean).join(" · ")) || "Set the organization, agent and assessor on the Scope tab."}</p>
+    <div class="ov-grid">
+      <div class="panel">
+        <div class="panel-h"><h3>Coverage by practice category</h3><span class="eyebrow">Coverage · Maturity</span></div>
+        ${rows}
+        <div class="legend"><span><i style="background:var(--ok)"></i>Implemented</span><span><i style="background:var(--warn)"></i>Partial</span><span><i style="background:var(--bad)"></i>Not implemented</span><span><i style="background:var(--na);opacity:.45"></i>N/A</span><span><i style="background:var(--unset);border:1px solid var(--line)"></i>Not assessed</span></div>
+      </div>
+      <div style="display:grid;gap:20px">
+        <div class="panel">
+          <div class="panel-h"><h3>Status of all 80 controls</h3></div>
+          <div class="statusdist">
+            <div><b style="color:var(--ok)">${all.I}</b><span>Implemented</span></div>
+            <div><b style="color:var(--warn)">${all.P}</b><span>Partially implemented</span></div>
+            <div><b style="color:var(--bad)">${all.N}</b><span>Not implemented</span></div>
+            <div><b style="color:var(--na)">${all.NA}</b><span>Not applicable</span></div>
+            <div><b>${all.U}</b><span>Not yet assessed</span></div>
+            <div><b>${all.mat==null?"—":all.mat.toFixed(1)}</b><span>Average maturity (0–5)</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>Priority gaps</h3><span class="eyebrow">${all.P1} P1 · ${all.P2} P2</span></div>
+          ${gapHtml}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---------- render: controls ---------- */
+function matches(c){
+  const r = resp(c.id), p = prio(c.id);
+  if(filt.cat && c.id.split("-")[0] !== filt.cat) return false;
+  if(filt.st === "U" && r.s) return false;
+  if(filt.st === "GAP" && !(r.s==="P" || r.s==="N")) return false;
+  if(filt.st && !["U","GAP"].includes(filt.st) && r.s !== filt.st) return false;
+  if(filt.pr && p !== filt.pr) return false;
+  if(filt.q){
+    const hay = [c.id, c.q, r.ev, r.ow, r.gap, r.rem, r.nt, c.iso42, c.iso27, c.owasp].join(" ").toLowerCase();
+    if(!filt.q.toLowerCase().split(/\s+/).every(t => hay.includes(t))) return false;
+  }
+  return true;
+}
+function ctlRow(c){
+  const r = resp(c.id), p = prio(c.id), open = expanded.has(c.id), dis = readOnly ? " disabled" : "";
+  const hasNotes = r.ev || r.ow || r.gap || r.rem || r.td || r.nt;
+  const seg = ["I","P","N","NA"].map(s => `<button type="button" id="s-${c.id}-${s}" class="s-${s}" data-st="${s}" data-id="${c.id}" aria-pressed="${r.s===s}" title="${ST_LABEL[s]}"${dis}>${ST_SHORT[s]}</button>`).join("");
+  const mat = [0,1,2,3,4,5].map(m => `<button type="button" id="m-${c.id}-${m}" data-mat="${m}" data-id="${c.id}" aria-pressed="${r.m===m}" title="${m} – ${MAT_LABEL[m]}"${dis}>${m}</button>`).join("");
+  const f = (k, lab, tag="textarea", extra="") => `<div><label for="f-${c.id}-${k}">${lab}</label>${tag==="textarea"
+      ? `<textarea id="f-${c.id}-${k}" data-id="${c.id}" data-k="${k}"${dis}>${esc(r[k])}</textarea>`
+      : `<input id="f-${c.id}-${k}" data-id="${c.id}" data-k="${k}" value="${esc(r[k])}" ${extra}${dis}>`}</div>`;
+  return `<div class="ctl state-${r.s||"U"}" id="row-${c.id}">
+    <div class="cid">${c.id}</div>
+    <div class="q"><p>${esc(c.q)}</p><div class="chips">
+      <span class="chip crit-${crit(c.id)}" title="Criticality${r.c?" (adjusted)":" (suggested)"}">${crit(c.id)}${r.c?" *":""}</span>
+      ${c.cl?`<span class="chip" title="Secure by Default checklist item ${c.cl}">SbD ${c.cl}</span>`:""}
+      ${r.s?`<span class="chip st-${r.s}">${ST_LABEL[r.s]}</span>`:""}
+      ${p?`<span class="chip ${p}">${p}</span>`:""}
+      ${r.nt?`<span class="chip" title="${esc(r.nt.slice(0,200))}">Notes</span>`:""}
+    </div></div>
+    <div class="sbox"><span class="mat-l">Status</span><div class="seg" role="group" aria-label="Status for ${c.id}">${seg}</div></div>
+    <div class="mbox"><span class="mat-l">Maturity</span><div class="mat" role="group" aria-label="Maturity for ${c.id}">${mat}</div></div>
+    <button type="button" class="expand${hasNotes?" has":""}" id="x-${c.id}" data-x="${c.id}" aria-expanded="${open}" aria-label="${open?"Hide":"Show"} details for ${c.id}"></button>
+    ${open ? `<div class="detail">
+      ${f("ev","Evidence / artifacts")}
+      ${f("gap","Gap / observations")}
+      ${f("rem","Remediation action")}
+      <div class="stackf">
+        ${f("ow","Owner","input",'type="text"')}
+        <div class="row3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+          ${f("td","Target date","input",'type="date"')}
+          <div><label for="f-${c.id}-c">Criticality</label><select id="f-${c.id}-c" data-id="${c.id}" data-k="c"${dis}>
+            <option value="">Suggested (${c.crit})</option>${["High","Medium","Low"].map(v=>`<option${r.c===v?" selected":""}>${v}</option>`).join("")}</select></div>
+        </div>
+      </div>
+      <div class="wide">${f("nt","Notes")}</div>
+      <div class="refs">
+        <div><b>See also</b><span>${esc(c.see)}</span></div>
+        <div><b>ISO/IEC 42001</b><span>${esc(c.iso42)}</span></div>
+        <div><b>ISO/IEC 27001:2022</b><span>${esc(c.iso27)}</span></div>
+        <div><b>OWASP LLM 2025</b><span>${esc(c.owasp)}</span></div>
+      </div>
+    </div>` : ""}
+  </div>`;
+}
+function renderControls(){
+  const shown = D.controls.filter(matches);
+  $("f-count").textContent = `${shown.length} of 80 controls`;
+  const html = D.cats.map(cat => {
+    const rows = shown.filter(c => c.id.split("-")[0]===cat.code);
+    if(!rows.length) return "";
+    const s = stats(idsIn(cat.code));
+    const note = (cur.cn||{})[cat.code] || "", showN = note || openCat.has(cat.code);
+    return `<div class="group"><div class="group-h"><span class="code">${cat.code}</span><h3>${esc(cat.name)}</h3>
+      <span class="meta">${s.assessed}/${s.n} assessed · coverage ${pct(s.cov)}${s.P1?` · ${s.P1} P1`:""}</span>
+      ${showN || readOnly ? "" : `<button type="button" class="cn-toggle" id="cnx-${cat.code}" data-cnx="${cat.code}">Add category note</button>`}</div>
+      ${showN ? `<div class="cn-box"><label for="cn-${cat.code}" class="mat-l">Category notes</label><textarea id="cn-${cat.code}" data-cn="${cat.code}" placeholder="Context that applies to the whole category, e.g. shared evidence or interview notes"${readOnly?" disabled":""}>${esc(note)}</textarea></div>` : ""}
+      <div class="panel" style="overflow:hidden">${rows.map(ctlRow).join("")}</div></div>`;
+  }).join("");
+  $("ctl-list").innerHTML = html || `<div class="panel empty-note">No controls match these filters.</div>`;
+}
+
+/* ---------- render: checklist ---------- */
+function renderChecklist(){
+  const dis = readOnly ? " disabled" : "";
+  const items = D.checklist.map((t,i) => {
+    const n = i+1, k = ckStatus(n), o = cur.ck[n] || {};
+    const cls = k.st==="Met"?"Met":k.st==="Partially met"?"Partially":k.st==="Not met"?"Not":"None";
+    const links = k.ids.map(id => { const s = resp(id).s; return `<button type="button" class="${s?"st-"+s:"u"}" data-goctl="${id}" title="${s?ST_LABEL[s]:"Not assessed"}">${id}</button>` }).join("");
+    return `<div class="ck">
+      <div class="n">${String(n).padStart(2,"0")}</div>
+      <div><div class="t">${esc(t)}</div><div class="links">${links}</div>
+        <div class="cov">${k.s.I} implemented · ${k.s.P} partial · ${k.s.N} not · coverage ${pct(k.s.cov)}</div></div>
+      <div class="c3"><span class="mat-l">Computed</span><div class="ck-status cs-${cls}">${k.st}</div></div>
+      <div class="c4"><span class="mat-l">Assessor override</span>
+        <label for="ck-${n}-o" style="position:absolute;left:-9999px">Override for item ${n}</label>
+        <select id="ck-${n}-o" data-ck="${n}" data-k="o"${dis}><option value="">No override</option>${["Met","Partially met","Not met","Not applicable"].map(v=>`<option${o.o===v?" selected":""}>${v}</option>`).join("")}</select></div>
+      ${o.o ? `<div class="ovr"><span></span><div><label for="ck-${n}-n" class="mat-l">Override rationale</label><input id="ck-${n}-n" data-ck="${n}" data-k="n" value="${esc(o.n)}" placeholder="Why the computed status doesn't reflect reality"${dis}></div></div>`:""}
+    </div>`;
+  }).join("");
+  $("v-checklist").innerHTML = `<h2>Secure by Default checklist</h2>
+    <p class="lede">ISACA's 15 checklist items (Figure 4). Each status is computed from the controls linked to it: Met at 100% coverage, Partially met at 50–99%, Not met below 50%. Override only with a written reason. The control-to-item links were made for this tool; ISACA doesn't publish them.</p>
+    <div class="panel">${items}</div>`;
+}
+
+/* ---------- render: data handling ---------- */
+function renderData(){
+  const dis = readOnly ? " disabled" : "";
+  const blocks = D.dataClasses.map((c,i) => {
+    const v = (cur.dh && cur.dh[c.cls]) || {};
+    const sel = ([k,lab]) => { const val = v[k] ?? c[k]; return `<div class="field"><label for="dh-${i}-${k}">${lab}</label><select id="dh-${i}-${k}" class="v-${String(val).split(" ")[0]}" data-dh="${esc(c.cls)}" data-k="${k}"${dis}>${DH_OPTS.map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select></div>` };
+    const txt = (k, lab, ph) => `<div class="field"><label for="dh-${i}-${k}">${lab}</label><textarea id="dh-${i}-${k}" data-dh="${esc(c.cls)}" data-k="${k}" placeholder="${ph}"${dis}>${esc(v[k])}</textarea></div>`;
+    return `<div class="dh">
+      <div><span class="eyebrow">Data class</span><h3>${esc(c.cls)}</h3><p class="ex">${esc(c.ex)}</p>
+        <p class="base"><span class="eyebrow" style="display:block">ISACA baseline handling</span>${esc(c.base)}</p>
+        <p class="sugg"><b>Suggested agent controls</b>${esc(c.ctl)}</p></div>
+      <div><div class="decis">${DH_FIELDS.map(sel).join("")}</div>
+        <div class="stackf">
+          <div class="field"><label for="dh-${i}-agents">Agents in scope that touch this class</label><input id="dh-${i}-agents" data-dh="${esc(c.cls)}" data-k="agents" value="${esc(v.agents)}"${dis}></div>
+          ${txt("cur","Current state","What happens today, and conditions for any “Conditional”")}
+          ${txt("gap","Gap / action","What needs to change")}
+        </div></div>
+    </div>`;
+  }).join("");
+  $("v-data").innerHTML = `<h2>Data handling decisions</h2>
+    <p class="lede">ISACA Appendix A (Figure 5) defines four data classes. Decide what each class may do inside this agent. The starting answers are suggestions for this tool, not ISACA requirements, so replace them with what the data owner approves. This is the evidence for DAT-03.</p>
+    <div class="panel">${blocks}</div>`;
+}
+
+/* ---------- render: notes ---------- */
+let noteBy = lsGet("aiagent-note-by") || "";
+const fmtWhen = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}) + "<br>" + d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}) };
+function renderNotes(){
+  const notes = (cur.notes||[]).slice().sort((a,b) => String(b.at).localeCompare(String(a.at)));
+  const dis = readOnly ? " disabled" : "";
+  const items = notes.map(n => {
+    const editing = editingNote === n.id, deleting = deletingNote === n.id;
+    return `<li id="note-${esc(n.id)}">
+      <div class="when">${n.by?`<b>${esc(n.by)}</b>`:""}${fmtWhen(n.at)}</div>
+      <div class="body">${editing ? `<label for="ne-${esc(n.id)}" style="position:absolute;left:-9999px">Edit note</label><textarea id="ne-${esc(n.id)}">${esc(n.text)}</textarea>` : esc(n.text)}</div>
+      ${readOnly ? "" : `<div class="tools">${editing
+        ? `<button type="button" data-note-save="${esc(n.id)}">Save</button><button type="button" data-note-cancel="1">Cancel</button>`
+        : deleting
+        ? `<span>Delete this note?</span><button type="button" class="del" data-note-del-yes="${esc(n.id)}">Delete</button><button type="button" data-note-cancel="1">Keep</button>`
+        : `<button type="button" data-note-edit="${esc(n.id)}">Edit</button><button type="button" class="del" data-note-del="${esc(n.id)}">Delete</button>${n.editedAt?`<span>· edited ${esc(new Date(n.editedAt).toLocaleDateString())}</span>`:""}`}</div>`}
+    </li>`;
+  }).join("");
+  $("v-notes").innerHTML = `<h2>Assessment notes</h2>
+    <p class="lede">A dated log for this assessment: interview notes, decisions, scope changes and follow-ups. Notes for a single control go in that control's details; notes for a whole category go above it on the Controls tab.</p>
+    ${readOnly ? "" : `<div class="panel" style="margin-bottom:20px"><div class="composer">
+      <label for="note-new" class="mat-l">New note</label>
+      <textarea id="note-new" placeholder="e.g., Walkthrough with Platform Engineering: tool permissions are set in the console, not in IaC (SDL-05)."${dis}></textarea>
+      <div class="row">
+        <div class="field"><label for="note-by" class="mat-l">Your name (optional)</label><input id="note-by" value="${esc(noteBy)}"${dis}></div>
+        <button class="btn primary" type="button" id="note-add">Add note</button>
+        <span class="hint">Ctrl or ⌘ + Enter adds the note</span>
+      </div></div></div>`}
+    <div class="panel">${notes.length ? `<ul class="log">${items}</ul>` : `<div class="empty-note">No notes yet.${readOnly?"":" Add the first one above."}</div>`}</div>
+    ${Object.values(cur.cn||{}).some(Boolean) ? `<h2 style="margin-top:24px">Category notes</h2><div class="panel">${D.cats.filter(c=>(cur.cn||{})[c.code]).map(c=>`<div style="padding:12px 16px;border-top:1px solid var(--line)"><button type="button" class="cn-toggle" data-gocat="${c.code}">${c.code} · ${esc(c.name)}</button><div class="log"><div class="body" style="margin-top:4px">${esc(cur.cn[c.code])}</div></div></div>`).join("")}</div>` : ""}`;
+}
+function addNote(){
+  const ta = $("note-new"); if(!ta || readOnly) return;
+  const text = ta.value.trim(); if(!text){ ta.focus(); return }
+  const by = ($("note-by").value||"").trim().slice(0,100); noteBy = by; lsSet("aiagent-note-by", by);
+  cur.notes = [...(cur.notes||[]), {id:"n-"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), at:new Date().toISOString(), by, text:text.slice(0,8000)}];
+  touch(); renderNotes(); renderTabCounts(); $("note-new").focus();
+}
+function renderTabCounts(){ const n = cur ? (cur.notes||[]).length : 0; $("notes-count").textContent = n ? String(n) : "" }
+
+/* ---------- render: scope ---------- */
+function renderScope(){
+  const dis = readOnly ? " disabled" : "";
+  const f = (k, lab, type="text", wide=false, ph="") => `<div class="field${wide?" wide":""}"><label for="sc-${k}">${lab}</label>${type==="textarea"
+    ? `<textarea id="sc-${k}" data-sc="${k}" placeholder="${ph}"${dis}>${esc(cur[k])}</textarea>`
+    : `<input id="sc-${k}" type="${type}" data-sc="${k}" value="${esc(cur[k])}" placeholder="${ph}"${dis}>`}</div>`;
+  $("v-scope").innerHTML = `<h2>Scope</h2>
+    <p class="lede">Name the agent and context. The agent name labels this assessment in the picker.</p>
+    <div class="panel" style="margin-bottom:20px"><div class="scope">
+      ${f("agent","Agent(s) / system in scope","text",false,"e.g., Customer support triage agent")}
+      ${f("org","Organization")}
+      ${f("desc","Agent description and autonomy level","textarea",true,"What it does, which tools and data it touches, and which actions it can take without approval")}
+      ${f("assessor","Assessor")}
+      ${f("date","Assessment date","date")}
+      ${f("version","Version / status")}
+    </div></div>
+    <h2>Method</h2>
+    <p class="lede">Scoring and priority rules used throughout this tool. ISACA doesn't prescribe a scoring method; these follow common GRC practice.</p>
+    <div class="panel"><div class="method" style="padding-top:16px">
+      <dl><dt>Implemented · 1.0</dt><dd>In place, operating and evidenced.</dd>
+        <dt>Partially implemented · 0.5</dt><dd>Covers only some agents, tools or environments, is undocumented, or has no evidence it operates.</dd>
+        <dt>Not implemented · 0</dt><dd>Absent.</dd>
+        <dt>Not applicable</dt><dd>Excluded from scoring. Record why in Gap / observations.</dd>
+        <dt>Coverage</dt><dd>(Implemented + 0.5 × Partial) ÷ assessed applicable controls.</dd></dl>
+      <dl>${MAT_LABEL.map((l,i)=>`<dt>${i} · ${l}</dt><dd>${["No control or awareness.","Ad hoc, depends on individuals.","Done consistently but not documented.","Documented, standardized and owned.","Measured and monitored, with metrics and review.","Continuously improved; automated where possible."][i]}</dd>`).join("")}</dl>
+      <dl><dt>P1</dt><dd>High criticality and not implemented.</dd>
+        <dt>P2</dt><dd>High criticality and partial, or medium criticality and not implemented.</dd>
+        <dt>P3</dt><dd>Any other gap.</dd>
+        <dt>Criticality</dt><dd>Each control has a suggested level. Adjust it per agent in the control's details to fit its blast radius: a read-only summarizer differs from an agent with write access to production.</dd>
+        <dt>Framework references</dt><dd>ISO/IEC 42001, ISO/IEC 27001:2022 and OWASP LLM Top 10 mappings are indicative. Check them before using them as audit evidence.</dd></dl>
+    </div></div>`;
+}
+
+/* ---------- render: frame ---------- */
+function showView(v){
+  view = v;
+  const has = !!cur;
+  $("v-empty").hidden = has;
+  ["overview","controls","checklist","data","notes","scope"].forEach(n => $("v-"+n).hidden = !has || n!==v);
+  document.querySelectorAll("#tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.v===v ? "page" : "false"));
+  $("tabs").style.visibility = has ? "visible" : "hidden";
+}
+function renderView(){
+  if(!cur) return;
+  ({overview:renderOverview, controls:renderControls, checklist:renderChecklist, data:renderData, notes:renderNotes, scope:renderScope})[view]();
+}
+function renderAll(keepFocus){
+  const fid = keepFocus && document.activeElement ? document.activeElement.id : null;
+  renderPicker(); renderStrip(); renderBanner(); renderTabCounts(); showView(view); renderView();
+  if(fid){ const el = $(fid); el && el.focus({preventScroll:true}) }
+}
+
+/* ---------- events ---------- */
+function setResp(id, k, v){
+  cur.r = cur.r || {};
+  const r = {...(cur.r[id]||{})};
+  if(v === "" || v == null) delete r[k]; else r[k] = v;
+  if(Object.keys(r).length) cur.r[id] = r; else delete cur.r[id];
+  touch();
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("button,a"); if(!t) return;
+  if(t.dataset.st && !readOnly){ const id = t.dataset.id, r = resp(id); setResp(id, "s", r.s===t.dataset.st ? "" : t.dataset.st); renderAll(true); return }
+  if(t.dataset.mat && !readOnly){ const id = t.dataset.id, m = +t.dataset.mat, r = resp(id); setResp(id, "m", r.m===m ? null : m); renderAll(true); return }
+  if(t.dataset.x){ const id = t.dataset.x; expanded.has(id) ? expanded.delete(id) : expanded.add(id); renderControls(); $("x-"+id) && $("x-"+id).focus({preventScroll:true}); return }
+  if(t.dataset.gocat){ filt.cat = t.dataset.gocat; $("f-cat").value = filt.cat; go("controls"); return }
+  if(t.dataset.goctl){ e.preventDefault(); const id = t.dataset.goctl; Object.assign(filt,{q:"",cat:"",st:"",pr:""}); ["f-q","f-cat","f-st","f-pr"].forEach(x=>$(x).value=""); expanded.add(id); go("controls"); requestAnimationFrame(()=>{ const row = $("row-"+id); row && row.scrollIntoView({block:"center"}); $("x-"+id) && $("x-"+id).focus({preventScroll:true}) }); return }
+  if(t.dataset.v){ e.preventDefault(); go(t.dataset.v); return }
+  if(t.dataset.cnx){ openCat.add(t.dataset.cnx); renderControls(); const el = $("cn-"+t.dataset.cnx); el && el.focus(); return }
+  if(t.id === "note-add"){ addNote(); return }
+  if(t.dataset.noteEdit){ editingNote = t.dataset.noteEdit; deletingNote = null; renderNotes(); const el = $("ne-"+editingNote); el && el.focus(); return }
+  if(t.dataset.noteDel){ deletingNote = t.dataset.noteDel; editingNote = null; renderNotes(); const el = document.querySelector("[data-note-del-yes]"); el && el.focus(); return }
+  if(t.dataset.noteCancel){ editingNote = deletingNote = null; renderNotes(); return }
+  if(t.dataset.noteSave && !readOnly){ const id = t.dataset.noteSave, v = ($("ne-"+id).value||"").trim(); if(!v) return;
+    cur.notes = (cur.notes||[]).map(n => n.id===id ? {...n, text:v.slice(0,8000), editedAt:new Date().toISOString()} : n); editingNote = null; touch(); renderNotes(); return }
+  if(t.dataset.noteDelYes && !readOnly){ const id = t.dataset.noteDelYes; cur.notes = (cur.notes||[]).filter(n => n.id!==id); deletingNote = null; touch(); renderNotes(); renderTabCounts(); return }
+});
+document.addEventListener("input", e => {
+  const t = e.target; if(readOnly || !cur) return;
+  if(t.dataset.id && t.dataset.k && t.tagName!=="SELECT"){ setResp(t.dataset.id, t.dataset.k, t.value); const x = $("x-"+t.dataset.id); x && x.classList.add("has"); return }
+  if(t.dataset.sc){ cur[t.dataset.sc] = t.value; touch(); if(t.dataset.sc==="agent"||t.dataset.sc==="org") renderPicker(); return }
+  if(t.dataset.cn){ cur.cn = {...(cur.cn||{}), [t.dataset.cn]: t.value.slice(0,8000)}; if(!t.value) delete cur.cn[t.dataset.cn]; touch(); return }
+  if(t.dataset.dh && t.tagName!=="SELECT"){ cur.dh[t.dataset.dh] = {...(cur.dh[t.dataset.dh]||{}), [t.dataset.k]: t.value}; touch(); return }
+  if(t.dataset.ck && t.tagName!=="SELECT"){ cur.ck[t.dataset.ck] = {...(cur.ck[t.dataset.ck]||{}), [t.dataset.k]: t.value}; touch(); return }
+});
+document.addEventListener("change", e => {
+  const t = e.target; if(readOnly || !cur || t.tagName!=="SELECT") return;
+  if(t.dataset.id && t.dataset.k==="c"){ setResp(t.dataset.id, "c", t.value); renderAll(true); return }
+  if(t.dataset.dh){ cur.dh[t.dataset.dh] = {...(cur.dh[t.dataset.dh]||{}), [t.dataset.k]: t.value}; t.className = "v-"+t.value.split(" ")[0]; touch(); return }
+  if(t.dataset.ck){ const o = {...(cur.ck[t.dataset.ck]||{}), o:t.value}; if(!t.value) delete o.o; cur.ck[t.dataset.ck] = o; touch(); renderAll(true); return }
+});
+function go(v){ showView(v); renderView(); try{ history.replaceState(null,"","#"+v) }catch(e){} window.scrollTo({top:0}) }
+
+$("f-q").addEventListener("input", e => { filt.q = e.target.value; renderControls() });
+$("f-st").addEventListener("change", e => { filt.st = e.target.value; renderControls() });
+$("f-pr").addEventListener("change", e => { filt.pr = e.target.value; renderControls() });
+$("f-cat").addEventListener("change", e => { filt.cat = e.target.value; renderControls() });
+$("f-cat").innerHTML = `<option value="">All categories</option>` + D.cats.map(c=>`<option value="${c.code}">${c.code} · ${esc(c.name)}</option>`).join("");
+
+$("asmt-select").addEventListener("change", async e => {
+  if(dirty){ clearTimeout(saveTimer); await flush() }
+  const a = list.find(x => x.id === e.target.value); if(!a) return;
+  cur = structuredClone(a); expanded.clear(); lsSet(LS_CUR, cur.id); renderAll();
+});
+async function createFrom(base){
+  if(readOnly) return;
+  if(dirty){ clearTimeout(saveTimer); await flush() }
+  const a = {...base, id:newId()}; delete a.example;
+  cur = a; lsSet(LS_CUR, a.id); list = [a, ...list]; dirty = true;
+  expanded.clear(); go("scope"); renderAll(); await flush();
+  const el = $("sc-agent"); el && el.select();
+}
+$("btn-new").onclick = () => createFrom(blankAssessment());
+$("btn-new-empty").onclick = () => createFrom(blankAssessment());
+$("btn-dup").onclick = () => { if(!cur) return; const c = structuredClone(cur); const now = new Date().toISOString(); c.name = (c.agent||c.name||"Assessment")+" (copy)"; c.agent = c.agent ? c.agent+" (copy)" : ""; c.createdAt = now; c.updatedAt = now; createFrom(c) };
+function delHandler(){
+  if(!cur || readOnly) return;
+  $("del-wrap").innerHTML = `<span class="confirm">Delete “${esc(cur.agent||cur.name)}”? <button class="btn danger" id="del-yes" type="button">Delete</button><button class="btn" id="del-no" type="button">Keep</button></span>`;
+  $("del-yes").onclick = async () => {
+    const id = cur.id; clearTimeout(saveTimer); dirty = false;
+    try{ await backend.remove(id); list = list.filter(a=>a.id!==id); cur = list[0] ? structuredClone(list[0]) : null; cur && lsSet(LS_CUR, cur.id); setSave("Assessment deleted") }
+    catch(e){ setSave("Couldn't delete. Try again.", true) }
+    resetDel(); renderAll();
+  };
+  $("del-no").onclick = resetDel;
+  $("del-yes").focus();
+}
+function resetDel(){ $("del-wrap").innerHTML = `<button class="btn danger" id="btn-del" type="button">Delete</button>`; bindDel() }
+function bindDel(){ const b = $("btn-del"); if(!b) return; b.onclick = delHandler; b.disabled = !cur || readOnly }
+
+document.addEventListener("keydown", e => { if(e.target && e.target.id === "note-new" && e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); addNote() } });
+
+/* ---------- CSV export ---------- */
+function csv(){
+  const q = v => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s };
+  const head = ["ID","Practice Category","Control","Secure by Default #","Criticality","Status","Maturity","Score","Evidence","Owner","Gap / Observations","Remediation","Notes","Gap Priority","Target Date","See Also","ISO/IEC 42001","ISO/IEC 27001:2022","OWASP LLM 2025"];
+  const rows = D.controls.map(c => { const r = resp(c.id), sc = score(r.s);
+    return [c.id, CAT[c.id.split("-")[0]], c.q, c.cl||"", crit(c.id), r.s?ST_LABEL[r.s]:"", r.m??"", sc??"", r.ev, r.ow, r.gap, r.rem, r.nt, prio(c.id), r.td, c.see, c.iso42, c.iso27, c.owasp] });
+  const meta = [["Assessment", cur.agent||cur.name],["Organization",cur.org],["Assessor",cur.assessor],["Date",cur.date],["Version",cur.version],[]];
+  return "﻿" + [...meta, head, ...rows].map(r => r.map(q).join(",")).join("\r\n");
+}
+let downloads = null;
+const fileBase = () => "AI-agent-assessment-" + (cur.agent||cur.name||"untitled").replace(/[^\w-]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,60);
+async function offerFile(filename, data, kind){
+  if(downloads){
+    try{ await downloads.save({filename, data}); setSave(kind + " exported"); return }
+    catch(e){ if(e && e.code==="declined") return; }
+  }
+  try{ await navigator.clipboard.writeText(data); setSave(kind + " copied to clipboard. Paste it into a file to keep it.") }
+  catch(e){ setSave("Export isn't available in this view.", true) }
+}
+function jsonExport(){
+  const {id, ...a} = structuredClone(cur);
+  return JSON.stringify({format:"ai-agent-assessment", schemaVersion:1, source:"ISACA Cybersecurity Recommendations for Securing AI Agents (2026)", exportedAt:new Date().toISOString(), assessments:[a]}, null, 2);
+}
+$("btn-export").onclick = () => { if(cur) offerFile(fileBase() + ".csv", csv(), "CSV") };
+$("btn-export-json").onclick = () => { if(cur) offerFile(fileBase() + ".json", jsonExport(), "JSON") };
+
+/* ---------- CSV import ---------- */
+function parseCSV(text){
+  text = text.replace(/^﻿/, "");
+  const rows = []; let row = [], f = "", q = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(q){
+      if(ch === '"'){ if(text[i+1] === '"'){ f += '"'; i++ } else q = false }
+      else f += ch;
+    } else if(ch === '"') q = true;
+    else if(ch === ","){ row.push(f); f = "" }
+    else if(ch === "\n" || ch === "\r"){ if(ch === "\r" && text[i+1] === "\n") i++; row.push(f); rows.push(row); row = []; f = "" }
+    else f += ch;
+  }
+  if(f !== "" || row.length){ row.push(f); rows.push(row) }
+  return rows.filter(r => r.some(c => c.trim() !== ""));
+}
+const norm = s => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+const COLS = {
+  id:["id","controlid"], s:["status"], m:["maturity","maturity05"], c:["criticality","suggestedcriticality"],
+  ev:["evidence","evidenceartifacts"], ow:["owner"], gap:["gapobservations","gap","observations"],
+  rem:["remediation","remediationaction"], nt:["notes","note","comments"], td:["targetdate"]
+};
+const META = {assessment:"agent", agent:"agent", organization:"org", org:"org", assessor:"assessor", date:"date", assessmentdate:"date", version:"version", versionstatus:"version", description:"desc"};
+function mapStatus(v){
+  const n = norm(v);
+  if(!n) return "";
+  if(["implemented","impl","yes","i","met"].includes(n)) return "I";
+  if(n.startsWith("partial") || n === "p") return "P";
+  if(n.startsWith("notimpl") || ["no","n","notmet","missing"].includes(n)) return "N";
+  if(["na","notapplicable","n/a"].includes(n) || n === "notapplicable") return "NA";
+  return null;
+}
+function mapDate(v){
+  v = String(v||"").trim(); if(!v) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  let m = v.match(/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/);
+  if(m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){ const y = m[3].length===2 ? "20"+m[3] : m[3]; return `${y}-${m[1].padStart(2,"0")}-${m[2].padStart(2,"0")}` }
+  if(/^\d{5}$/.test(v)){ const d = new Date(Date.UTC(1899,11,30) + (+v)*86400000); return d.toISOString().slice(0,10) }
+  const d = new Date(v); return isNaN(d) ? null : d.toISOString().slice(0,10);
+}
+function analyzeCSV(text){
+  const rows = parseCSV(text);
+  const hi = rows.findIndex(r => { const h = r.map(norm); return COLS.id.some(a => h.includes(a)) && COLS.s.some(a => h.includes(a)) });
+  if(hi < 0) return {error:"This file has no header row with both an “ID” and a “Status” column. Export a CSV from this tool, or save the workbook's Assessment tab as CSV, then try again."};
+  const h = rows[hi].map(norm), col = {};
+  for(const [k, al] of Object.entries(COLS)){ const i = h.findIndex(x => al.includes(x)); if(i >= 0) col[k] = i }
+  const scope = {};
+  rows.slice(0, hi).forEach(r => { const k = META[norm(r[0])]; if(k && r[1] && r[1].trim()) scope[k] = k==="date" ? (mapDate(r[1]) || "") : r[1].trim() });
+  const r = {}, warn = [], unknown = [], seen = new Set();
+  let counts = {I:0,P:0,N:0,NA:0,blank:0};
+  rows.slice(hi+1).forEach((row, n) => {
+    const id = String(row[col.id]||"").trim().toUpperCase(); if(!id) return;
+    if(!CTL[id]){ unknown.push(id); return }
+    if(seen.has(id)){ warn.push(`${id} appears more than once; the last row was used.`) }
+    seen.add(id);
+    const o = {}, cell = k => col[k] != null ? String(row[col[k]] ?? "").trim() : "";
+    const st = mapStatus(cell("s"));
+    if(st === null){ warn.push(`${id}: status “${cell("s")}” isn't recognised, so it was left blank.`); counts.blank++ }
+    else if(st){ o.s = st; counts[st]++ } else counts.blank++;
+    const mv = cell("m");
+    if(mv !== ""){ const m = Number(mv); if(Number.isInteger(m) && m>=0 && m<=5) o.m = m; else warn.push(`${id}: maturity “${mv}” isn't 0–5, so it was left blank.`) }
+    const cv = cell("c");
+    if(cv){ const c = cv[0].toUpperCase()+cv.slice(1).toLowerCase(); if(["High","Medium","Low"].includes(c)){ if(c !== CTL[id].crit) o.c = c } else warn.push(`${id}: criticality “${cv}” isn't High, Medium or Low; the suggested level was kept.`) }
+    ["ev","ow","gap","rem","nt"].forEach(k => { const v = cell(k); if(v) o[k] = v });
+    const tv = cell("td");
+    if(tv){ const d = mapDate(tv); if(d) o.td = d; else warn.push(`${id}: target date “${tv}” couldn't be read, so it was left blank.`) }
+    if(Object.keys(o).length) r[id] = o; else delete r[id];
+  });
+  if(!seen.size) return {error:"The file has the right headers but no rows with a known control ID (GOV-01 to RES-04)."};
+  const missing = Object.keys(COLS).filter(k => col[k] == null && k !== "id").map(k => ({s:"Status",m:"Maturity",c:"Criticality",ev:"Evidence",ow:"Owner",gap:"Gap / Observations",rem:"Remediation",nt:"Notes",td:"Target Date"})[k]);
+  return {r, ids:[...seen], scope, counts, matched:seen.size, unknown, warn, missing};
+}
+/* ---------- JSON import ---------- */
+const sStr = (v, max) => typeof v === "string" ? v.slice(0, max) : typeof v === "number" ? String(v) : "";
+function cleanAssessment(a, warn, label){
+  if(!a || typeof a !== "object" || Array.isArray(a)) return null;
+  const out = blankAssessment();
+  ["name","org","agent","assessor","version"].forEach(k => { if(a[k] != null) out[k] = sStr(a[k], 300) });
+  if(a.desc != null) out.desc = sStr(a.desc, 4000);
+  if(a.date){ const d = mapDate(a.date); if(d) out.date = d; else warn.push(`${label}: assessment date “${sStr(a.date,40)}” couldn't be read.`) }
+  if(typeof a.createdAt === "string") out.createdAt = a.createdAt.slice(0,40);
+  if(!out.agent && out.name) out.agent = out.name;
+  if(!out.name) out.name = out.agent || "Imported assessment";
+  let unknown = 0, dropped = 0;
+  const r = a.r && typeof a.r === "object" && !Array.isArray(a.r) ? a.r : {};
+  for(const [id, v] of Object.entries(r)){
+    if(!CTL[id]){ unknown++; continue }
+    if(!v || typeof v !== "object"){ dropped++; continue }
+    const o = {};
+    if(["I","P","N","NA"].includes(v.s)) o.s = v.s; else if(v.s) dropped++;
+    if(Number.isInteger(v.m) && v.m >= 0 && v.m <= 5) o.m = v.m; else if(v.m != null) dropped++;
+    if(["High","Medium","Low"].includes(v.c) && v.c !== CTL[id].crit) o.c = v.c;
+    ["ev","ow","gap","rem","nt"].forEach(k => { const s = sStr(v[k], 8000); if(s) o[k] = s });
+    if(v.td){ const d = mapDate(v.td); if(d) o.td = d; else dropped++ }
+    if(Object.keys(o).length) out.r[id] = o;
+  }
+  if(a.ck && typeof a.ck === "object"){
+    for(const [n, v] of Object.entries(a.ck)){
+      const k = +n; if(!(k >= 1 && k <= 15) || !v || typeof v !== "object") continue;
+      const o = {};
+      if(["Met","Partially met","Not met","Not applicable"].includes(v.o)) o.o = v.o;
+      const note = sStr(v.n, 2000); if(note) o.n = note;
+      if(Object.keys(o).length) out.ck[k] = o;
+    }
+  }
+  if(a.cn && typeof a.cn === "object" && !Array.isArray(a.cn)){
+    D.cats.forEach(c => { const s = sStr(a.cn[c.code], 8000); if(s) out.cn[c.code] = s });
+  }
+  if(Array.isArray(a.notes)){
+    a.notes.slice(0,500).forEach((n, i) => {
+      if(!n || typeof n !== "object") return;
+      const text = sStr(n.text, 8000).trim(); if(!text) return;
+      const at = typeof n.at === "string" && !isNaN(new Date(n.at)) ? new Date(n.at).toISOString() : new Date().toISOString();
+      const o = {id:"n-"+Date.now().toString(36)+i+Math.random().toString(36).slice(2,5), at, by:sStr(n.by,100), text};
+      if(typeof n.editedAt === "string" && !isNaN(new Date(n.editedAt))) o.editedAt = new Date(n.editedAt).toISOString();
+      out.notes.push(o);
+    });
+    if(a.notes.length > 500) warn.push(`${label}: only the first 500 notes were imported.`);
+  }
+  if(a.dh && typeof a.dh === "object"){
+    D.dataClasses.forEach(c => {
+      const v = a.dh[c.cls]; if(!v || typeof v !== "object") return;
+      DH_FIELDS.forEach(([k]) => { if(DH_OPTS.includes(v[k])) out.dh[c.cls][k] = v[k] });
+      ["agents","cur","gap"].forEach(k => { if(v[k] != null) out.dh[c.cls][k] = sStr(v[k], 4000) });
+    });
+  }
+  if(unknown) warn.push(`${label}: skipped ${unknown} unknown control ID${unknown>1?"s":""}.`);
+  if(dropped) warn.push(`${label}: ${dropped} value${dropped>1?"s were":" was"} invalid and left blank.`);
+  return out;
+}
+function analyzeJSON(text){
+  let j;
+  try{ j = JSON.parse(text.replace(/^\ufeff/, "")) }catch(e){ return {error:"This file isn't valid JSON. Export a JSON backup from this tool and try again."} }
+  const raw = Array.isArray(j) ? j : j && Array.isArray(j.assessments) ? j.assessments : j && typeof j === "object" && j.r ? [j] : null;
+  if(!raw) return {error:"This JSON file doesn't contain an assessment. Use a file made with Export JSON."};
+  if(raw.length > 50) return {error:`This file holds ${raw.length} assessments. Import at most 50 at a time.`};
+  const warn = [], items = [];
+  raw.forEach((a, i) => { const c = cleanAssessment(a, warn, (a && (a.agent || a.name)) ? sStr(a.agent || a.name, 60) : `Assessment ${i+1}`); if(c) items.push(c); else warn.push(`Entry ${i+1} isn't an assessment and was skipped.`) });
+  if(!items.length) return {error:"No usable assessments were found in this file."};
+  return {kind:"json", items, warn};
+}
+function renderJsonImport(p, el){
+  const rows = p.items.map(a => {
+    const ids = Object.keys(a.r), c = {I:0,P:0,N:0,NA:0}; ids.forEach(id => { if(a.r[id].s) c[a.r[id].s]++ });
+    const ass = c.I+c.P+c.N+c.NA;
+    return `<li><b>${esc(a.agent||a.name)}</b>${a.org?` · ${esc(a.org)}`:""} <span style="color:var(--muted)">· ${ass}/80 assessed · ${c.I} implemented · ${c.P} partial · ${c.N} not · ${c.NA} N/A · ${Object.keys(a.ck).length} checklist overrides · ${a.notes.length} note${a.notes.length===1?"":"s"}</span></li>`;
+  }).join("");
+  const n = p.items.length, one = n === 1;
+  el.innerHTML = `<div class="panel imp" role="alertdialog" aria-labelledby="imp-h">
+    <h3 id="imp-h">Import ${esc(p.file)}</h3>
+    <p class="hint">JSON backup with ${n} assessment${one?"":"s"}, including scope, notes, checklist overrides and data handling decisions.</p>
+    <ul style="margin:10px 0 0;padding-left:18px;font-size:13px">${rows}</ul>
+    ${p.warn.length ? `<ul class="warnlist">${p.warn.slice(0,8).map(w=>`<li>${esc(w)}</li>`).join("")}${p.warn.length>8?`<li>${p.warn.length-8} more warnings</li>`:""}</ul>` : ""}
+    <div class="acts">
+      <button class="btn primary" type="button" id="imp-new">${one ? `Create new assessment “${esc(p.items[0].agent||p.items[0].name)}”` : `Create ${n} new assessments`}</button>
+      ${one && cur ? `<button class="btn" type="button" id="imp-merge">Replace “${esc(cur.agent||cur.name)}”</button>` : ""}
+      <button class="btn" type="button" id="imp-cancel">Cancel</button>
+    </div>
+    ${one && cur ? `<p class="hint">Replacing overwrites everything in “${esc(cur.agent||cur.name)}” with the file: scope, every control, notes, checklist overrides and data handling.</p>` : ""}
+  </div>`;
+  $("imp-new").onclick = async () => {
+    pendingImport = null; renderImport();
+    const now = new Date().toISOString();
+    for(const a of p.items){ a.updatedAt = now; await createFrom(a) }
+    go("overview"); setSave(one ? "Imported 1 assessment" : `Imported ${n} assessments`);
+  };
+  if($("imp-merge")) $("imp-merge").onclick = () => {
+    const a = p.items[0], keep = {id:cur.id, createdAt:cur.createdAt};
+    cur = {...a, ...keep};
+    pendingImport = null; renderImport(); touch(); go("overview"); renderAll(); setSave("Assessment replaced. Saving…");
+  };
+}
+let pendingImport = null;
+function renderImport(){
+  const el = $("import-panel");
+  if(!pendingImport){ el.innerHTML = ""; return }
+  const p = pendingImport;
+  if(p.kind === "json" && !p.error){ renderJsonImport(p, el) }
+  else if(p.error){
+    el.innerHTML = `<div class="panel imp" role="alertdialog" aria-labelledby="imp-h"><h3 id="imp-h">Couldn't import ${esc(p.file)}</h3><p class="err">${esc(p.error)}</p><div class="acts"><button class="btn" type="button" id="imp-cancel">Close</button></div></div>`;
+  } else {
+    const c = p.counts, name = p.scope.agent || p.file.replace(/\.csv$/i,"");
+    const warns = [...(p.unknown.length ? [`Skipped ${p.unknown.length} row${p.unknown.length>1?"s":""} with an unknown control ID (${esc(p.unknown.slice(0,6).join(", "))}${p.unknown.length>6?", …":""}).`] : []),
+      ...(p.missing.length ? [`No column for ${esc(p.missing.join(", "))}; those fields will be blank.`] : []), ...p.warn.map(esc)];
+    el.innerHTML = `<div class="panel imp" role="alertdialog" aria-labelledby="imp-h">
+      <h3 id="imp-h">Import ${esc(p.file)}</h3>
+      <p class="hint">${p.matched} of 80 controls found${p.scope.agent?` for “${esc(p.scope.agent)}”`:""}.</p>
+      <div class="sum"><span class="chip st-I">${c.I} implemented</span><span class="chip st-P">${c.P} partial</span><span class="chip st-N">${c.N} not implemented</span><span class="chip st-NA">${c.NA} N/A</span><span class="chip">${c.blank} no status</span></div>
+      ${warns.length ? `<ul class="warnlist">${warns.slice(0,8).map(w=>`<li>${w}</li>`).join("")}${warns.length>8?`<li>${warns.length-8} more warnings</li>`:""}</ul>` : ""}
+      <div class="acts">
+        <button class="btn primary" type="button" id="imp-new">Create new assessment “${esc(name)}”</button>
+        ${cur ? `<button class="btn" type="button" id="imp-merge">Update “${esc(cur.agent||cur.name)}”</button>` : ""}
+        <button class="btn" type="button" id="imp-cancel">Cancel</button>
+      </div>
+      ${cur ? `<p class="hint">Updating replaces the answers for the ${p.matched} controls in the file, and leaves the other controls, category and assessment notes, checklist overrides and data handling decisions as they are.</p>` : ""}
+    </div>`;
+    $("imp-new").onclick = async () => {
+      const a = blankAssessment();
+      Object.assign(a, p.scope); a.name = p.scope.agent || name; a.agent = p.scope.agent || name; a.r = structuredClone(p.r);
+      pendingImport = null; renderImport();
+      await createFrom(a); go("overview"); setSave(`Imported ${p.matched} controls`);
+    };
+    if($("imp-merge")) $("imp-merge").onclick = () => {
+      cur.r = {...(cur.r||{})};
+      p.ids.forEach(id => { if(p.r[id]) cur.r[id] = structuredClone(p.r[id]); else delete cur.r[id] });
+      pendingImport = null; renderImport(); touch(); go("overview"); renderAll(); setSave(`Imported ${p.matched} controls. Saving…`);
+    };
+  }
+  $("imp-cancel").onclick = () => { pendingImport = null; renderImport() };
+  (($("imp-new")) || $("imp-cancel")).focus();
+  window.scrollTo({top:0});
+}
+async function importFile(file){
+  if(!file || readOnly) return;
+  if(file.size > 2*1024*1024){ pendingImport = {file:file.name, error:"This file is larger than 2 MB. An assessment file is usually under 100 KB, so check that it's the right file."}; renderImport(); return }
+  let text = "";
+  try{ text = await file.text() }catch(e){ pendingImport = {file:file.name, error:"The file couldn't be read. Try saving it again as CSV or JSON (UTF-8)."}; renderImport(); return }
+  const isJson = /\.json$/i.test(file.name) || /^\s*[\[{]/.test(text.replace(/^\ufeff/, ""));
+  pendingImport = {file:file.name, ...(isJson ? analyzeJSON(text) : analyzeCSV(text))}; renderImport();
+}
+$("btn-import").onclick = () => { if(!readOnly) $("file-import").click() };
+$("btn-import-empty").onclick = () => { if(!readOnly) $("file-import").click() };
+$("file-import").addEventListener("change", e => { importFile(e.target.files[0]); e.target.value = "" });
+document.addEventListener("dragover", e => { if(readOnly || !e.dataTransfer || ![...e.dataTransfer.types].includes("Files")) return; e.preventDefault(); document.body.classList.add("dropping") });
+document.addEventListener("dragleave", e => { if(e.relatedTarget === null) document.body.classList.remove("dropping") });
+document.addEventListener("drop", e => { document.body.classList.remove("dropping"); if(readOnly || !e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); importFile(e.dataTransfer.files[0]) });
+
+/* ---------- storage: permission, fallback, migration ---------- */
+let perms = null, localReason = "", hideMigrate = false, migrating = false;
+function readLocalStore(){ try{ return JSON.parse(lsGet(LS_KEY) || "{}") || {} }catch(e){ return {} } }
+function strandedLocal(){
+  const m = readLocalStore();
+  return Object.entries(m).filter(([id]) => !list.some(a => a.id === id)).map(([id, v]) => ({...v, id}));
+}
+async function migrateLocal(){
+  if(migrating || readOnly || !backend || backend.kind !== "db") return;
+  migrating = true; renderBanner();
+  const items = strandedLocal(); let moved = 0, failed = 0;
+  for(const a of items){
+    const {id, ...body} = structuredClone(a); delete body.example;
+    try{ await backend.save(id, body); const m = readLocalStore(); delete m[id]; lsSet(LS_KEY, JSON.stringify(m)); moved++ }
+    catch(e){ failed++; if(e && e.code === "invalid_argument"){ readOnly = true; break } }
+  }
+  migrating = false;
+  if(moved && items[0]){ lsSet(LS_CUR, items[0].id) }
+  setSave(failed ? `Moved ${moved}; ${failed} couldn't be moved. Try again.` : `Moved ${moved} assessment${moved>1?"s":""} to this page`, !!failed);
+  renderBanner();
+}
+async function switchToDb(){
+  const db = await window.claude.use("db").catch(() => null);
+  if(!db){ localReason = "reload"; renderBanner(); return }
+  if(dirty){ clearTimeout(saveTimer); await flush() }
+  start(dbBackend(db)); setSave("Saving to this page is on"); renderBanner();
+}
+async function allowSaving(){
+  if(!perms){ localReason = "unavailable"; renderBanner(); return }
+  const res = await perms.request(["db"]).catch(() => ({}));
+  const s = res && res.db;
+  if(s === "granted") return switchToDb();
+  localReason = s === "denied" ? "denied" : s === "prompt" ? "prompt" : "unavailable"; renderBanner();
+}
+async function openPermissions(){
+  if(!perms) return;
+  try{ await perms.manage() }catch(e){ setSave("Open this page's Permissions menu and allow saving.", true); return }
+  const s = await perms.state("db").catch(() => "unavailable");
+  if(s === "granted") return switchToDb();
+  localReason = s === "prompt" ? "prompt" : s === "denied" ? "denied" : "unavailable"; renderBanner();
+}
+
+/* ---------- boot ---------- */
+let unsub = null;
+function start(be){
+  if(unsub){ try{ unsub() }catch(e){} unsub = null }
+  backend = be;
+  unsub = be.subscribe(onList, err => {
+    if(err && err.code === "not_granted"){ localReason = "denied"; start(localBackend()); renderAll(); return }
+    if(err && err.code === "revoked"){ readOnly = true; setSave("View only", true); renderAll(); return }
+    setSave("Lost connection to this page's storage. Reload the page; your unsaved edits are still on screen.", true);
+  }) || null;
+}
+async function boot(){
+  if(!(window.claude && typeof window.claude.use === "function")){ localReason = "noviewer"; return start(localBackend()) }
+  window.claude.use("downloads").then(d => { downloads = d }).catch(() => {});
+  perms = await window.claude.use("permissions").catch(() => null);
+  const db = await window.claude.use("db").catch(() => null);
+  if(db) return start(dbBackend(db));
+  let s = null; if(perms){ s = await perms.state("db").catch(() => null) }
+  let top = false; try{ top = window.top === window }catch(e){}
+  localReason = s === "denied" ? "denied" : s === "prompt" ? "prompt" : top ? "noviewer" : "unavailable";
+  start(localBackend());
+}
+const initial = (location.hash||"").slice(1);
+if(["overview","controls","checklist","data","notes","scope"].includes(initial)) view = initial;
+showView(view);
+bindDel();
+boot();
+</script>
+
+</body></html>
