@@ -2,7 +2,6 @@
 
 A web app for assessing AI agents against ISACA's *Cybersecurity Recommendations for Securing AI Agents* (2026). It covers all 80 controls in the paper's 11 practice categories, rolls them up into ISACA's 15-item Secure by Default checklist, and records data handling decisions based on the paper's Appendix A.
 
-- **App:** https://claude.ai/artifact/Ctg5xMaWpgn358FRacKSht (private until you share it)
 - **Companion workbook:** `AI_Agent_Security_Assessment_Worksheet.xlsx`, the same controls and scoring in Excel. The two exchange data through CSV (see [Import and export](#import-and-export)).
 
 ---
